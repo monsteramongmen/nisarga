@@ -89,7 +89,7 @@ export default function Dashboard() {
             <CardTitle>Revenue - Last 7 Days</CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{}} className="h-[350px] w-full">
+            <ChartContainer config={{}} className="h-[300px] sm:h-[350px] w-full">
                <LineChart
                 data={sevenDayRevenue}
                 margin={{

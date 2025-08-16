@@ -51,7 +51,7 @@ export default function ReportsPage() {
           <CardTitle>Monthly Revenue</CardTitle>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={{}} className="h-[350px] w-full">
+          <ChartContainer config={{}} className="h-[300px] sm:h-[350px] w-full">
             <BarChart accessibilityLayer data={revenueData}>
               <CartesianGrid vertical={false} />
               <XAxis
@@ -84,7 +84,7 @@ export default function ReportsPage() {
           <CardTitle>Order Volume</CardTitle>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={{}} className="h-[350px] w-full">
+          <ChartContainer config={{}} className="h-[300px] sm:h-[350px] w-full">
             <LineChart
               accessibilityLayer
               data={ordersData}
