@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, DocumentData, QueryDocumentSnapshot, Timestamp, orderBy, query, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, DocumentData, QueryDocumentSnapshot, Timestamp, orderBy, query, writeBatch, getDoc, deleteField } from 'firebase/firestore';
 import type { Quotation, Order } from '@/lib/data';
 
 const quotationCollection = collection(db, 'quotations');
@@ -31,13 +31,22 @@ export const addQuotation = async (quotationData: Omit<Quotation, 'id'>): Promis
 
 export const updateQuotation = async (id: string, quotationData: Partial<Quotation>): Promise<void> => {
     const quotationDoc = doc(db, 'quotations', id);
-    const dataToUpdate = { ...quotationData };
+    const dataToUpdate: { [key: string]: any } = { ...quotationData };
+
     if (dataToUpdate.eventDate && typeof dataToUpdate.eventDate === 'string') {
         dataToUpdate.eventDate = Timestamp.fromDate(new Date(dataToUpdate.eventDate));
     }
     if (dataToUpdate.lastUpdated && typeof dataToUpdate.lastUpdated === 'string') {
         dataToUpdate.lastUpdated = Timestamp.fromDate(new Date(dataToUpdate.lastUpdated));
     }
+
+    // Firestore doesn't support `undefined` values. We need to remove them.
+    Object.keys(dataToUpdate).forEach(key => {
+        if (dataToUpdate[key] === undefined) {
+            dataToUpdate[key] = deleteField();
+        }
+    });
+
     await updateDoc(quotationDoc, dataToUpdate);
 };
 
