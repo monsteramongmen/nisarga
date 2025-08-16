@@ -16,7 +16,6 @@ export default function CustomersPage() {
         <Card key={customer.id}>
           <CardHeader className="flex flex-col items-center text-center">
             <Avatar className="w-20 h-20 mb-4">
-              <AvatarImage src={`https://i.pravatar.cc/150?u=${customer.id}`} />
               <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <CardTitle className="text-lg">{customer.name}</CardTitle>
