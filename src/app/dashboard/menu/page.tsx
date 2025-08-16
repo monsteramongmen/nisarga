@@ -102,7 +102,7 @@ export default function MenuPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {menuItems.map((item) => (
           <Card key={item.id} className="flex flex-col">
-            <CardHeader className="relative">
+            <CardHeader className="relative p-0">
               <Image 
                 src="https://placehold.co/600x400.png"
                 alt={item.name}
@@ -127,20 +127,25 @@ export default function MenuPage() {
                 </DropdownMenu>
               </div>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-grow p-6">
               <CardTitle className="text-lg">{item.name}</CardTitle>
               <Badge variant={item.category === "Veg" ? "secondary" : "default"} className="mt-2">
                 {item.category}
               </Badge>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="p-6 pt-0">
               <p className="text-lg font-semibold">${item.price.toFixed(2)}</p>
             </CardFooter>
           </Card>
         ))}
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setCurrentItem(null)
+          }
+          setDialogOpen(isOpen)
+      }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{currentItem ? "Edit Menu Item" : "Add Menu Item"}</DialogTitle>
@@ -156,7 +161,7 @@ export default function MenuPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="category" className="text-right">Category</Label>
-                <Select name="category" defaultValue={currentItem?.category}>
+                <Select name="category" defaultValue={currentItem?.category || 'Veg'}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
@@ -172,7 +177,10 @@ export default function MenuPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => {
+                setDialogOpen(false)
+                setCurrentItem(null)
+              }}>Cancel</Button>
               <Button type="submit">Save changes</Button>
             </DialogFooter>
           </form>
