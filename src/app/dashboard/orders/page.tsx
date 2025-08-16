@@ -62,14 +62,14 @@ export default function OrdersPage() {
                 <span>Event on {order.eventDate}</span>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="justify-between">
               <Select
                 value={order.status}
                 onValueChange={(value: Order["status"]) =>
                   handleStatusChange(order.id, value)
                 }
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-fit">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -78,7 +78,7 @@ export default function OrdersPage() {
                   <SelectItem value="Completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
-               <Badge className={`ml-4 ${getStatusClass(order.status)}`} variant="outline">
+               <Badge className={`${getStatusClass(order.status)}`} variant="outline">
                   {order.status}
                 </Badge>
             </CardFooter>
