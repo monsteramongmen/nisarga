@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const statusHierarchy: Order["status"][] = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled"]
 
@@ -55,6 +56,9 @@ export default function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
   const [tempItems, setTempItems] = useState<OrderItem[]>([])
+  const [menuSearch, setMenuSearch] = useState('');
+  const [menuCategory, setMenuCategory] = useState<'All' | 'Veg' | 'Non-Veg'>('All');
+
 
   const { toast } = useToast()
 
@@ -81,6 +85,13 @@ export default function OrdersPage() {
     const totalAmount = tempItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
     return { totalItems, totalAmount }
   }, [tempItems])
+
+  const filteredMenuItems = useMemo(() => {
+    return menuItems
+      .filter(item => menuCategory === 'All' || item.category === menuCategory)
+      .filter(item => item.name.toLowerCase().includes(menuSearch.toLowerCase()));
+  }, [menuSearch, menuCategory]);
+
 
   const handleOpenForm = (order: Order | null = null) => {
     setEditingOrder(order)
@@ -293,117 +304,153 @@ export default function OrdersPage() {
               <DialogTitle>{editingOrder ? `Update Order #${editingOrder.id}` : 'Add New Order'}</DialogTitle>
               <DialogDescription>{editingOrder ? 'Update details for this order.' : 'Enter details for the new order.'}</DialogDescription>
             </DialogHeader>
-          <form onSubmit={handleSaveOrder} className="flex-grow overflow-hidden flex flex-col">
-            <ScrollArea className="flex-grow pr-6 -mr-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Order Details Column */}
-                <div className="space-y-4">
-                    <div className="grid gap-2">
-                    <Label htmlFor="eventName">Event Name</Label>
-                    <Input id="eventName" name="eventName" defaultValue={editingOrder?.eventName} required />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="customer">Customer</Label>
-                        <Select name="customer" defaultValue={editingOrder?.customerName} disabled={!!editingOrder}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {initialCustomers.map(customer => (
-                                <SelectItem key={customer.id} value={editingOrder ? customer.name : customer.id} disabled={!!editingOrder}>
-                                    {customer.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    </div>
-                    <div className="grid gap-2">
-                    <Label htmlFor="eventDate">Event Date</Label>
-                    <Input type="date" id="eventDate" name="eventDate" defaultValue={editingOrder?.eventDate} required/>
-                    </div>
-                    {editingOrder && (
-                    <div className="grid gap-2">
-                        <Label htmlFor="status">Order Status</Label>
-                        <Select name="status" defaultValue={editingOrder.status}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {statusHierarchy.map(status => (
-                            <SelectItem key={status} value={status}>{status}</SelectItem>
-                            ))}
-                        </SelectContent>
-                        </Select>
-                    </div>
-                    )}
-                    {editingOrder && (
-                    <>
-                        <h3 className="text-lg font-semibold pt-4">Selected Items</h3>
-                        <ScrollArea className="h-48">
-                        <div className="space-y-2 pr-4">
-                            {tempItems.length > 0 ? tempItems.map(item => (
-                            <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                <span className="flex-1">{item.name}</span>
-                                <div className="flex items-center gap-2">
-                                <Input 
-                                    type="number" 
-                                    className="w-20 h-8"
-                                    value={item.quantity}
-                                    onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
-                                />
-                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+            <form onSubmit={handleSaveOrder} className="flex-grow overflow-hidden flex flex-col">
+                {editingOrder ? (
+                    <Tabs defaultValue="details" className="flex-grow flex flex-col overflow-hidden">
+                        <TabsList className="w-full">
+                            <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+                            <TabsTrigger value="add_items" className="flex-1">Add Items</TabsTrigger>
+                            <TabsTrigger value="summary" className="flex-1">
+                                Summary <Badge variant="secondary" className="ml-2">{orderSummary.totalItems}</Badge>
+                            </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="details" className="flex-grow overflow-y-auto pt-4">
+                           <div className="space-y-4 pr-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="eventName">Event Name</Label>
+                                <Input id="eventName" name="eventName" defaultValue={editingOrder?.eventName} required />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="customer">Customer</Label>
+                                <Input id="customer" name="customer" value={editingOrder?.customerName} disabled />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="eventDate">Event Date</Label>
+                                <Input type="date" id="eventDate" name="eventDate" defaultValue={editingOrder?.eventDate} required/>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="status">Order Status</Label>
+                                <Select name="status" defaultValue={editingOrder.status}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {statusHierarchy.map(status => (
+                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                                </Select>
+                            </div>
+                           </div>
+                        </TabsContent>
+                        <TabsContent value="add_items" className="flex-grow flex flex-col overflow-y-auto pt-4">
+                            <div className="flex gap-4 mb-4 pr-4">
+                                <Input placeholder="Search items..." value={menuSearch} onChange={e => setMenuSearch(e.target.value)} />
+                                <Select value={menuCategory} onValueChange={(v: 'All' | 'Veg' | 'Non-Veg') => setMenuCategory(v)}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Filter by category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All</SelectItem>
+                                        <SelectItem value="Veg">Veg</SelectItem>
+                                        <SelectItem value="Non-Veg">Non-Veg</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <ScrollArea className="flex-grow pr-4 -mr-4">
+                                <div className="space-y-2">
+                                    {filteredMenuItems.map(item => (
+                                        <Card key={item.id} className="p-3 flex justify-between items-center">
+                                            <div>
+                                                <p className="font-semibold">{item.name}</p>
+                                                <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
+                                            </div>
+                                            <Button type="button" size="sm" onClick={() => handleItemAdd(item)}>Add</Button>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </TabsContent>
+                        <TabsContent value="summary" className="flex-grow flex flex-col overflow-y-auto pt-4">
+                            <ScrollArea className="flex-grow pr-4 -mr-4">
+                            <div className="space-y-2">
+                                {tempItems.length > 0 ? tempItems.map(item => (
+                                <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                                    <div className="flex-1">
+                                        <p className="font-medium">{item.name}</p>
+                                        <p className="text-sm text-muted-foreground">@ ₹{item.price.toFixed(2)}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <Input 
+                                        type="number" 
+                                        className="w-20 h-8 text-center"
+                                        value={item.quantity}
+                                        onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
+                                        min="0"
+                                    />
+                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                    </div>
+                                    <div className="w-24 text-right font-semibold">
+                                     ₹{(item.price * item.quantity).toFixed(2)}
+                                    </div>
+                                </div>
+                                )) : (
+                                <div className="text-sm text-muted-foreground text-center py-16">
+                                    <ShoppingCart className="mx-auto h-12 w-12 mb-4" />
+                                    <h3 className="text-lg font-semibold">No items added yet.</h3>
+                                    <p>Head to the 'Add Items' tab to select menu items.</p>
+                                </div>
+                                )}
+                            </div>
+                            </ScrollArea>
+                            {tempItems.length > 0 && (
+                            <div className="mt-4 p-4 bg-muted rounded-lg space-y-2 border-t pr-4">
+                                <div className="flex justify-between text-lg font-bold">
+                                    <span>Final Amount</span>
+                                    <span>₹{orderSummary.totalAmount.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Total Items</span>
+                                    <span>{orderSummary.totalItems}</span>
                                 </div>
                             </div>
-                            )) : (
-                            <div className="text-sm text-muted-foreground text-center py-8">
-                                <ShoppingCart className="mx-auto h-8 w-8 mb-2" />
-                                No items selected.
-                            </div>
                             )}
-                        </div>
-                        </ScrollArea>
-                        <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
-                            <div className="flex justify-between font-semibold">
-                                <span>Total Items</span>
-                                <span>{orderSummary.totalItems}</span>
-                            </div>
-                             <div className="flex justify-between font-semibold">
-                                <span>Final Amount</span>
-                                <span>₹{orderSummary.totalAmount.toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </>
-                    )}
-                </div>
-                
-                {/* Menu Items Column */}
-                {editingOrder && (
+                        </TabsContent>
+                    </Tabs>
+                ) : (
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Add Items to Order</h3>
-                        <ScrollArea className="h-[calc(100%-2rem)]">
-                            <div className="space-y-2 pr-4">
-                                {menuItems.map(item => (
-                                    <Card key={item.id} className="p-3 flex justify-between items-center">
-                                        <div>
-                                            <p className="font-semibold">{item.name}</p>
-                                            <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
-                                        </div>
-                                        <Button type="button" size="sm" onClick={() => handleItemAdd(item)}>Add</Button>
-                                    </Card>
-                                ))}
-                            </div>
-                        </ScrollArea>
+                        <div className="grid gap-2">
+                            <Label htmlFor="eventName">Event Name</Label>
+                            <Input id="eventName" name="eventName" required />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="customer">Customer</Label>
+                            <Select name="customer" required>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a customer" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {initialCustomers.map(customer => (
+                                        <SelectItem key={customer.id} value={customer.id}>
+                                            {customer.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="eventDate">Event Date</Label>
+                            <Input type="date" id="eventDate" name="eventDate" required/>
+                        </div>
                     </div>
                 )}
-                </div>
-            </ScrollArea>
-            <DialogFooter className="mt-8 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={handleCloseForm}>Cancel</Button>
-                <Button type="submit">{editingOrder ? "Update Order" : "Add Order"}</Button>
-            </DialogFooter>
-          </form>
+                <DialogFooter className="mt-8 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={handleCloseForm}>Cancel</Button>
+                    <Button type="submit">{editingOrder ? "Update Order" : "Add Order"}</Button>
+                </DialogFooter>
+            </form>
         </DialogContent>
       </Dialog>
       
