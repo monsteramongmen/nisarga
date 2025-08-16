@@ -138,15 +138,11 @@ export default function OrdersPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    const baseOrderData = {
-      eventName: formData.get("eventName") as string,
-      eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
-    }
-
     if (editingOrder) {
       const updatedOrder: Order = {
         ...editingOrder,
-        ...baseOrderData,
+        eventName: formData.get("eventName") as string,
+        eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
         status: formData.get("status") as Order["status"],
         orderType: tempOrderType,
         items: tempItems,
@@ -176,7 +172,8 @@ export default function OrdersPage() {
        const newOrder: Order = {
          id: `ORD${Date.now()}`,
          customerName: customer!.name,
-         ...baseOrderData,
+         eventName: formData.get("eventName") as string,
+         eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
          status: "Pending",
          items: [],
          orderType: 'Individual',
