@@ -43,11 +43,8 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
           <h1 className="text-2xl font-bold text-sidebar-primary group-data-[collapsible=icon]:hidden">
-            Catering Co.
+            Catering Commander
           </h1>
-          <div className="group-data-[collapsible=icon]:hidden">
-            <UserNav />
-          </div>
         </SidebarHeader>
         <SidebarContent>
           <DashboardNav />
@@ -57,7 +54,7 @@ export default function DashboardLayout({
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
           <SidebarTrigger className="md:hidden" />
           <h1 className="text-xl font-semibold md:text-2xl">Dashboard</h1>
-          <div className="ml-auto hidden md:block">
+          <div className="ml-auto">
             <UserNav />
           </div>
         </header>
