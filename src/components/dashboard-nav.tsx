@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
-const navItems = [
+export const navItems = [
   {
     href: "/dashboard",
     label: "Dashboard",

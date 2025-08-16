@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
-import { DashboardNav } from "@/components/dashboard-nav"
+import { DashboardNav, navItems } from "@/components/dashboard-nav"
 import { UserNav } from "@/components/user-nav"
 import {
   SidebarProvider,
@@ -23,6 +23,10 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+
+  const currentPage = navItems.find((item) => item.href === pathname)
+  const pageTitle = currentPage ? currentPage.label : ""
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -53,7 +57,7 @@ export default function DashboardLayout({
       <SidebarInset>
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
           <SidebarTrigger className="md:hidden" />
-          <h1 className="text-xl font-semibold md:text-2xl">Dashboard</h1>
+          <h1 className="text-xl font-semibold md:text-2xl">{pageTitle}</h1>
           <div className="ml-auto">
             <UserNav />
           </div>
