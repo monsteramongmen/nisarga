@@ -4,7 +4,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Catering Commander',
+  title: 'Nisarga',
   description: 'Dashboard for a catering service.',
 };
 

@@ -43,7 +43,7 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
           <h1 className="text-2xl font-bold text-sidebar-primary group-data-[collapsible=icon]:hidden">
-            Catering Commander
+            Nisarga
           </h1>
         </SidebarHeader>
         <SidebarContent>
