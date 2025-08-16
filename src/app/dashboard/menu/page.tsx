@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import React, { useState, useMemo } from "react"
+import { MoreHorizontal, PlusCircle, Search } from "lucide-react"
 
 import type { MenuItem } from "@/lib/data"
 import { menuItems as initialMenuItems } from "@/lib/data"
@@ -46,7 +46,25 @@ export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems)
   const [isDialogOpen, setDialogOpen] = useState(false)
   const [currentItem, setCurrentItem] = useState<MenuItem | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<"All" | "Veg" | "Non-Veg">("All")
   const { toast } = useToast()
+
+  const filteredMenuItems = useMemo(() => {
+    let items = menuItems
+
+    if (categoryFilter !== "All") {
+      items = items.filter((item) => item.category === categoryFilter)
+    }
+
+    if (searchTerm) {
+      items = items.filter((item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return items
+  }, [menuItems, searchTerm, categoryFilter])
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -66,7 +84,7 @@ export default function MenuPage() {
       )
       toast({ title: "Success", description: "Menu item updated." })
     } else {
-      setMenuItems([...menuItems, newMenuItem])
+      setMenuItems([newMenuItem, ...menuItems])
       toast({ title: "Success", description: "New menu item added." })
     }
     setDialogOpen(false)
@@ -89,18 +107,36 @@ export default function MenuPage() {
 
   return (
     <>
-       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-lg font-semibold md:text-2xl">Menu Management</h1>
-          <p className="text-muted-foreground text-sm">Add, edit, or delete your menu items.</p>
+       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+        <div className="relative flex-1 w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Filter by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-        <Button size="sm" onClick={() => handleOpenDialog()}>
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add New Item
-        </Button>
+        <div className="flex gap-4 w-full sm:w-auto">
+            <Select value={categoryFilter} onValueChange={(value: "All" | "Veg" | "Non-Veg") => setCategoryFilter(value)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="All">All Categories</SelectItem>
+                    <SelectItem value="Veg">Veg</SelectItem>
+                    <SelectItem value="Non-Veg">Non-Veg</SelectItem>
+                </SelectContent>
+            </Select>
+            <Button size="sm" onClick={() => handleOpenDialog()} className="whitespace-nowrap">
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add New Item
+            </Button>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <Card key={item.id} className="flex flex-col">
             <CardHeader className="relative p-0">
               <Image 
