@@ -11,6 +11,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -21,7 +22,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -39,15 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
+import Image from "next/image"
 
 export default function MenuPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems)
@@ -88,68 +81,64 @@ export default function MenuPage() {
       description: "Menu item has been deleted.",
     })
   }
-  
+
   const handleOpenDialog = (item: MenuItem | null = null) => {
-    setCurrentItem(item);
-    setDialogOpen(true);
+    setCurrentItem(item)
+    setDialogOpen(true)
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle>Menu Management</CardTitle>
-            <CardDescription>Add, edit, or delete your menu items.</CardDescription>
-          </div>
-          <Button size="sm" onClick={() => handleOpenDialog()}>
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add New Item
-          </Button>
+    <div>
+       <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Menu Management</h1>
+          <p className="text-muted-foreground">Add, edit, or delete your menu items.</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {menuItems.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell>
-                  <Badge variant={item.category === "Veg" ? "secondary" : "default"}>
-                    {item.category}
-                  </Badge>
-                </TableCell>
-                <TableCell>${item.price.toFixed(2)}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleOpenDialog(item)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDelete(item.id)}>Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
+        <Button size="sm" onClick={() => handleOpenDialog()}>
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Add New Item
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {menuItems.map((item) => (
+          <Card key={item.id} className="flex flex-col">
+            <CardHeader className="relative">
+              <Image 
+                src="https://placehold.co/600x400.png"
+                alt={item.name}
+                width={600}
+                height={400}
+                className="rounded-t-lg object-cover"
+                data-ai-hint="food item"
+              />
+              <div className="absolute top-2 right-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => handleOpenDialog(item)}>Edit</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDelete(item.id)}>Delete</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <CardTitle className="text-lg">{item.name}</CardTitle>
+              <Badge variant={item.category === "Veg" ? "secondary" : "default"} className="mt-2">
+                {item.category}
+              </Badge>
+            </CardContent>
+            <CardFooter>
+              <p className="text-lg font-semibold">${item.price.toFixed(2)}</p>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -189,6 +178,6 @@ export default function MenuPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   )
 }

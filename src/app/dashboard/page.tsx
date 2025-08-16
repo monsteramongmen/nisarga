@@ -7,6 +7,8 @@ import {
   Users,
 } from "lucide-react"
 import {
+  Bar,
+  BarChart,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -23,6 +25,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  ChartContainer,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
 export default function Dashboard() {
   return (
@@ -83,26 +89,37 @@ export default function Dashboard() {
             <CardTitle>Revenue - Last 7 Days</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={sevenDayRevenue}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                  }}
+            <ChartContainer config={{}} className="h-[350px] w-full">
+               <LineChart
+                data={sevenDayRevenue}
+                margin={{
+                  left: 12,
+                  right: 12,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
                 />
+                <YAxis
+                   tickLine={false}
+                   axisLine={false}
+                   tickMargin={8}
+                   tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                 <Line
-                  type="monotone"
                   dataKey="revenue"
+                  type="natural"
                   stroke="hsl(var(--primary))"
                   strokeWidth={2}
-                  activeDot={{ r: 8 }}
+                  dot={false}
                 />
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>

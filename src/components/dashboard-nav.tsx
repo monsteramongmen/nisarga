@@ -10,12 +10,11 @@ import {
   Users,
 } from "lucide-react"
 
-import { cn } from "@/lib/utils"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar"
 
 const navItems = [
   {
@@ -49,29 +48,23 @@ export function DashboardNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="grid items-start gap-2">
+    <SidebarMenu>
       {navItems.map((item) => {
         const Icon = item.icon
         return (
-          <Tooltip key={item.label}>
-            <TooltipTrigger asChild>
-              <Link
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                  pathname === item.href && "bg-muted text-primary"
-                )}
+          <SidebarMenuItem key={item.label}>
+            <Link href={item.href} legacyBehavior passHref>
+              <SidebarMenuButton
+                isActive={pathname === item.href}
+                tooltip={item.label}
               >
-                <Icon className="h-4 w-4" />
+                <Icon />
                 <span>{item.label}</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent align="center" side="right">
-              {item.label}
-            </TooltipContent>
-          </Tooltip>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
         )
       })}
-    </nav>
+    </SidebarMenu>
   )
 }

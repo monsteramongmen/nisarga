@@ -26,13 +26,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
-             <Utensils className="h-8 w-8 text-primary" />
+             <div className="bg-primary p-3 rounded-full">
+                <Utensils className="h-8 w-8 text-primary-foreground" />
+             </div>
           </div>
-          <CardTitle className="text-2xl font-headline">Catering Commander</CardTitle>
+          <CardTitle className="text-2xl">Catering Commander</CardTitle>
           <CardDescription>
             Enter your credentials to access the dashboard
           </CardDescription>
