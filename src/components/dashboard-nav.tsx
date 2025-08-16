@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   BarChart,
   BookOpen,
+  FileText,
   LayoutDashboard,
   Package,
   Users,
@@ -36,6 +37,11 @@ export const navItems = [
     href: "/dashboard/customers",
     label: "Customers",
     icon: Users,
+  },
+  {
+    href: "/dashboard/quotations",
+    label: "Quotations",
+    icon: FileText,
   },
   {
     href: "/dashboard/reports",
