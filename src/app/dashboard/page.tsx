@@ -64,7 +64,7 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$5,231.89</div>
+            <div className="text-2xl font-bold">₹4,35,231</div>
             <p className="text-xs text-muted-foreground">
               +20.1% from last month
             </p>
@@ -108,7 +108,7 @@ export default function Dashboard() {
                    tickLine={false}
                    axisLine={false}
                    tickMargin={8}
-                   tickFormatter={(value) => `$${value}`}
+                   tickFormatter={(value) => `₹${value}`}
                 />
                 <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                 <Line

@@ -24,13 +24,13 @@ import {
 } from "@/components/ui/chart"
 
 const revenueData = [
-  { month: "Jan", revenue: 4000 },
-  { month: "Feb", revenue: 3000 },
-  { month: "Mar", revenue: 5000 },
-  { month: "Apr", revenue: 4500 },
-  { month: "May", revenue: 6000 },
-  { month: "Jun", revenue: 5500 },
-  { month: "Jul", revenue: 7000 },
+  { month: "Jan", revenue: 400000 },
+  { month: "Feb", revenue: 300000 },
+  { month: "Mar", revenue: 500000 },
+  { month: "Apr", revenue: 450000 },
+  { month: "May", revenue: 600000 },
+  { month: "Jun", revenue: 550000 },
+  { month: "Jul", revenue: 700000 },
 ]
 
 const ordersData = [
@@ -64,7 +64,7 @@ export default function ReportsPage() {
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-                tickFormatter={(value) => `$${value / 1000}K`}
+                tickFormatter={(value) => `₹${Number(value) / 100000}L`}
               />
               <Tooltip
                 cursor={false}

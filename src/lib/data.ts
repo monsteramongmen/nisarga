@@ -31,12 +31,12 @@ export const orders: Order[] = [
 ]
 
 export const menuItems: MenuItem[] = [
-  { id: "MENU01", name: "Caprese Skewers", category: "Veg", price: 7.50 },
-  { id: "MENU02", name: "Chicken Satay", category: "Non-Veg", price: 10.00 },
-  { id: "MENU03", name: "Mushroom Vol-au-vents", category: "Veg", price: 8.00 },
-  { id: "MENU04", name: "Mini Quiche Lorraine", category: "Non-Veg", price: 9.50 },
-  { id: "MENU05", name: "Stuffed Bell Peppers", category: "Veg", price: 12.00 },
-  { id: "MENU06", name: "Lamb Koftas", category: "Non-Veg", price: 14.00 },
+  { id: "MENU01", name: "Caprese Skewers", category: "Veg", price: 625.50 },
+  { id: "MENU02", name: "Chicken Satay", category: "Non-Veg", price: 830.00 },
+  { id: "MENU03", name: "Mushroom Vol-au-vents", category: "Veg", price: 665.00 },
+  { id: "MENU04", name: "Mini Quiche Lorraine", category: "Non-Veg", price: 790.50 },
+  { id: "MENU05", name: "Stuffed Bell Peppers", category: "Veg", price: 1000.00 },
+  { id: "MENU06", name: "Lamb Koftas", category: "Non-Veg", price: 1165.00 },
 ]
 
 export const customers: Customer[] = [
@@ -49,11 +49,11 @@ export const customers: Customer[] = [
 ]
 
 export const sevenDayRevenue = [
-  { date: "7 days ago", revenue: 1200 },
-  { date: "6 days ago", revenue: 1500 },
-  { date: "5 days ago", revenue: 1300 },
-  { date: "4 days ago", revenue: 1800 },
-  { date: "3 days ago", revenue: 1600 },
-  { date: "2 days ago", revenue: 1900 },
-  { date: "Yesterday", revenue: 2100 },
+  { date: "7 days ago", revenue: 100000 },
+  { date: "6 days ago", revenue: 125000 },
+  { date: "5 days ago", revenue: 110000 },
+  { date: "4 days ago", revenue: 150000 },
+  { date: "3 days ago", revenue: 135000 },
+  { date: "2 days ago", revenue: 160000 },
+  { date: "Yesterday", revenue: 175000 },
 ];

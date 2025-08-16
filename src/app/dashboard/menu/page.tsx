@@ -134,7 +134,7 @@ export default function MenuPage() {
               </Badge>
             </CardContent>
             <CardFooter className="p-6 pt-0">
-              <p className="text-lg font-semibold">${item.price.toFixed(2)}</p>
+              <p className="text-lg font-semibold">₹{item.price.toFixed(2)}</p>
             </CardFooter>
           </Card>
         ))}
