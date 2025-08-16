@@ -76,6 +76,12 @@ export default function OrdersPage() {
     return items.sort((a, b) => statusHierarchy.indexOf(a.status) - statusHierarchy.indexOf(b.status));
   }, [orders, searchTerm, statusFilter])
 
+  const orderSummary = useMemo(() => {
+    const totalItems = tempItems.reduce((sum, item) => sum + item.quantity, 0)
+    const totalAmount = tempItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    return { totalItems, totalAmount }
+  }, [tempItems])
+
   const handleOpenForm = (order: Order | null = null) => {
     setEditingOrder(order)
     setTempItems(order?.items || [])
@@ -282,106 +288,118 @@ export default function OrdersPage() {
       </div>
       
       <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingOrder ? `Update Order #${editingOrder.id}` : 'Add New Order'}</DialogTitle>
               <DialogDescription>{editingOrder ? 'Update details for this order.' : 'Enter details for the new order.'}</DialogDescription>
             </DialogHeader>
-          <form onSubmit={handleSaveOrder}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Order Details Column */}
-              <div className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="eventName">Event Name</Label>
-                  <Input id="eventName" name="eventName" defaultValue={editingOrder?.eventName} required />
-                </div>
-                 <div className="grid gap-2">
-                    <Label htmlFor="customer">Customer</Label>
-                    <Select name="customer" defaultValue={editingOrder?.customerName} disabled={!!editingOrder}>
-                       <SelectTrigger>
-                           <SelectValue placeholder="Select a customer" />
-                       </SelectTrigger>
-                       <SelectContent>
-                           {initialCustomers.map(customer => (
-                               <SelectItem key={customer.id} value={editingOrder ? customer.name : customer.id} disabled={!!editingOrder}>
-                                   {customer.name}
-                               </SelectItem>
-                           ))}
-                       </SelectContent>
-                   </Select>
-                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="eventDate">Event Date</Label>
-                  <Input type="date" id="eventDate" name="eventDate" defaultValue={editingOrder?.eventDate} required/>
-                </div>
-                {editingOrder && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="status">Order Status</Label>
-                    <Select name="status" defaultValue={editingOrder.status}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusHierarchy.map(status => (
-                          <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {editingOrder && (
-                  <>
-                    <h3 className="text-lg font-semibold pt-4">Selected Items</h3>
-                    <ScrollArea className="h-48">
-                      <div className="space-y-2 pr-4">
-                        {tempItems.length > 0 ? tempItems.map(item => (
-                          <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                            <span className="flex-1">{item.name}</span>
-                            <div className="flex items-center gap-2">
-                              <Input 
-                                type="number" 
-                                className="w-20 h-8"
-                                value={item.quantity}
-                                onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
-                              />
-                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                  <Trash2 className="h-4 w-4" />
-                               </Button>
-                            </div>
-                          </div>
-                        )) : (
-                          <div className="text-sm text-muted-foreground text-center py-8">
-                             <ShoppingCart className="mx-auto h-8 w-8 mb-2" />
-                             No items selected.
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </>
-                )}
-              </div>
-              
-              {/* Menu Items Column */}
-              {editingOrder && (
-                  <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Add Items to Order</h3>
-                      <ScrollArea className="h-[26.5rem]">
-                          <div className="space-y-2 pr-4">
-                            {menuItems.map(item => (
-                                <Card key={item.id} className="p-3 flex justify-between items-center">
-                                    <div>
-                                        <p className="font-semibold">{item.name}</p>
-                                        <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
-                                    </div>
-                                    <Button type="button" size="sm" onClick={() => handleItemAdd(item)}>Add</Button>
-                                </Card>
+          <form onSubmit={handleSaveOrder} className="flex-grow overflow-hidden flex flex-col">
+            <ScrollArea className="flex-grow pr-6 -mr-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Order Details Column */}
+                <div className="space-y-4">
+                    <div className="grid gap-2">
+                    <Label htmlFor="eventName">Event Name</Label>
+                    <Input id="eventName" name="eventName" defaultValue={editingOrder?.eventName} required />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="customer">Customer</Label>
+                        <Select name="customer" defaultValue={editingOrder?.customerName} disabled={!!editingOrder}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {initialCustomers.map(customer => (
+                                <SelectItem key={customer.id} value={editingOrder ? customer.name : customer.id} disabled={!!editingOrder}>
+                                    {customer.name}
+                                </SelectItem>
                             ))}
-                          </div>
-                      </ScrollArea>
-                  </div>
-              )}
-            </div>
-            <DialogFooter className="mt-8">
+                        </SelectContent>
+                    </Select>
+                    </div>
+                    <div className="grid gap-2">
+                    <Label htmlFor="eventDate">Event Date</Label>
+                    <Input type="date" id="eventDate" name="eventDate" defaultValue={editingOrder?.eventDate} required/>
+                    </div>
+                    {editingOrder && (
+                    <div className="grid gap-2">
+                        <Label htmlFor="status">Order Status</Label>
+                        <Select name="status" defaultValue={editingOrder.status}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {statusHierarchy.map(status => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    )}
+                    {editingOrder && (
+                    <>
+                        <h3 className="text-lg font-semibold pt-4">Selected Items</h3>
+                        <ScrollArea className="h-48">
+                        <div className="space-y-2 pr-4">
+                            {tempItems.length > 0 ? tempItems.map(item => (
+                            <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                                <span className="flex-1">{item.name}</span>
+                                <div className="flex items-center gap-2">
+                                <Input 
+                                    type="number" 
+                                    className="w-20 h-8"
+                                    value={item.quantity}
+                                    onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
+                                />
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                                </div>
+                            </div>
+                            )) : (
+                            <div className="text-sm text-muted-foreground text-center py-8">
+                                <ShoppingCart className="mx-auto h-8 w-8 mb-2" />
+                                No items selected.
+                            </div>
+                            )}
+                        </div>
+                        </ScrollArea>
+                        <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
+                            <div className="flex justify-between font-semibold">
+                                <span>Total Items</span>
+                                <span>{orderSummary.totalItems}</span>
+                            </div>
+                             <div className="flex justify-between font-semibold">
+                                <span>Final Amount</span>
+                                <span>₹{orderSummary.totalAmount.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </>
+                    )}
+                </div>
+                
+                {/* Menu Items Column */}
+                {editingOrder && (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Add Items to Order</h3>
+                        <ScrollArea className="h-[calc(100%-2rem)]">
+                            <div className="space-y-2 pr-4">
+                                {menuItems.map(item => (
+                                    <Card key={item.id} className="p-3 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-semibold">{item.name}</p>
+                                            <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
+                                        </div>
+                                        <Button type="button" size="sm" onClick={() => handleItemAdd(item)}>Add</Button>
+                                    </Card>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </div>
+                )}
+                </div>
+            </ScrollArea>
+            <DialogFooter className="mt-8 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={handleCloseForm}>Cancel</Button>
                 <Button type="submit">{editingOrder ? "Update Order" : "Add Order"}</Button>
             </DialogFooter>
