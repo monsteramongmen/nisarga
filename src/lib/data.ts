@@ -17,6 +17,7 @@ export type Customer = {
   name: string
   phone: string
   email: string
+  address: string
   totalOrders: number
 }
 
@@ -39,12 +40,12 @@ export const menuItems: MenuItem[] = [
 ]
 
 export const customers: Customer[] = [
-  { id: "CUST01", name: "Alice Johnson", phone: "123-456-7890", email: "alice@example.com", totalOrders: 2 },
-  { id: "CUST02", name: "Bob Williams", phone: "234-567-8901", email: "bob@example.com", totalOrders: 1 },
-  { id: "CUST03", name: "Charlie Brown", phone: "345-678-9012", email: "charlie@example.com", totalOrders: 5 },
-  { id: "CUST04", name: "Diana Miller", phone: "456-789-0123", email: "diana@example.com", totalOrders: 3 },
-  { id: "CUST05", name: "Ethan Davis", phone: "567-890-1234", email: "ethan@example.com", totalOrders: 8 },
-  { id: "CUST06", name: "Fiona Garcia", phone: "678-901-2345", email: "fiona@example.com", totalOrders: 4 },
+  { id: "CUST01", name: "Alice Johnson", phone: "123-456-7890", email: "alice@example.com", address: "123 Maple St, Springfield", totalOrders: 2 },
+  { id: "CUST02", name: "Bob Williams", phone: "234-567-8901", email: "bob@example.com", address: "456 Oak Ave, Shelbyville", totalOrders: 1 },
+  { id: "CUST03", name: "Charlie Brown", phone: "345-678-9012", email: "charlie@example.com", address: "789 Pine Ln, Capital City", totalOrders: 5 },
+  { id: "CUST04", name: "Diana Miller", phone: "456-789-0123", email: "diana@example.com", address: "101 Birch Rd, Ogdenville", totalOrders: 3 },
+  { id: "CUST05", name: "Ethan Davis", phone: "567-890-1234", email: "ethan@example.com", address: "212 Cedar Blvd, North Haverbrook", totalOrders: 8 },
+  { id: "CUST06", name: "Fiona Garcia", phone: "678-901-2345", email: "fiona@example.com", address: "333 Elm Ct, Brockway", totalOrders: 4 },
 ]
 
 export const sevenDayRevenue = [

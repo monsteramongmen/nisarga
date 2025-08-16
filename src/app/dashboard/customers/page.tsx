@@ -1,6 +1,10 @@
-import { Mail, Phone } from "lucide-react"
-import { customers } from "@/lib/data"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+"use client"
+
+import React, { useState, useMemo } from "react"
+import { Mail, Phone, Search } from "lucide-react"
+import { customers as initialCustomers, Customer } from "@/lib/data"
+import { getAvatarColor, getInitials } from "@/lib/utils"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -8,35 +12,68 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 
 export default function CustomersPage() {
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const filteredCustomers = useMemo(() => {
+    if (!searchTerm) return initialCustomers
+
+    return initialCustomers.filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.address.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [searchTerm])
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {customers.map((customer) => (
-        <Card key={customer.id}>
-          <CardHeader className="flex flex-col items-center text-center">
-            <Avatar className="w-20 h-20 mb-4">
-              <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <CardTitle className="text-lg">{customer.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-2 text-sm text-muted-foreground">
-             <div className="flex items-center justify-center gap-2">
-              <Mail className="h-4 w-4" />
-              <span>{customer.email}</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <Phone className="h-4 w-4" />
-              <span>{customer.phone}</span>
-            </div>
-            <div className="pt-2">
-              <Badge variant="outline">
-                {customer.totalOrders} {customer.totalOrders === 1 ? 'Order' : 'Orders'}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div>
+      <div className="mb-6 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Filter by name, address, or phone..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {filteredCustomers.map((customer) => (
+          <Card key={customer.id}>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Avatar
+                className="w-12 h-12"
+                style={{ backgroundColor: getAvatarColor(customer.name) }}
+              >
+                <AvatarFallback className="text-white bg-transparent">
+                  {getInitials(customer.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-base">{customer.name}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                   {customer.address}
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                <span>{customer.phone}</span>
+              </div>
+              <div className="pt-2">
+                <Badge variant="outline">
+                  {customer.totalOrders}{" "}
+                  {customer.totalOrders === 1 ? "Order" : "Orders"}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }
