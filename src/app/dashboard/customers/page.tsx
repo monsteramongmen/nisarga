@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Mail, Phone, Search } from "lucide-react"
+import { Home, Phone, Search } from "lucide-react"
 import { customers as initialCustomers, Customer } from "@/lib/data"
 import { getAvatarColor, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -45,21 +45,20 @@ export default function CustomersPage() {
           <Card key={customer.id}>
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar
-                className="w-12 h-12"
+                className="w-10 h-10"
                 style={{ backgroundColor: getAvatarColor(customer.name) }}
               >
                 <AvatarFallback className="text-white bg-transparent">
                   {getInitials(customer.name)}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <CardTitle className="text-base">{customer.name}</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                   {customer.address}
-                </p>
-              </div>
+              <CardTitle className="text-base">{customer.name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
+               <div className="flex items-start gap-2">
+                <Home className="h-4 w-4 mt-1 shrink-0" />
+                <span>{customer.address}</span>
+              </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4" />
                 <span>{customer.phone}</span>
