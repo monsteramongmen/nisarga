@@ -49,7 +49,8 @@ export default function OrdersPage() {
   const filteredOrders = useMemo(() => {
     return orders.filter(order =>
       order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.eventName.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [orders, searchTerm])
 
@@ -90,12 +91,13 @@ export default function OrdersPage() {
     const formData = new FormData(e.currentTarget)
     const customerId = formData.get("customer") as string
     const eventDate = formData.get("eventDate") as string
+    const eventName = formData.get("eventName") as string
     
-    if (!customerId || !eventDate) {
+    if (!customerId || !eventDate || !eventName) {
       toast({
         variant: "destructive",
         title: "Missing Information",
-        description: "Please select a customer and an event date.",
+        description: "Please fill out all required fields.",
       })
       return
     }
@@ -106,6 +108,7 @@ export default function OrdersPage() {
     const newOrder: Order = {
       id: `ORD${Date.now()}`,
       customerName: customer.name,
+      eventName: eventName,
       eventDate: format(new Date(eventDate), "yyyy-MM-dd"),
       status: "Pending",
     }
@@ -134,7 +137,7 @@ export default function OrdersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Filter by Order ID or Customer Name..."
+            placeholder="Filter by Order ID, Customer, or Event..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -152,7 +155,7 @@ export default function OrdersPage() {
             <CardHeader>
               <div className="flex justify-between items-start">
                   <div>
-                      <CardTitle>Order #{order.id}</CardTitle>
+                      <CardTitle>{order.eventName}</CardTitle>
                       <CardDescription className="flex items-center gap-2 pt-1">
                           <User className="h-4 w-4" /> {order.customerName}
                       </CardDescription>
@@ -179,9 +182,10 @@ export default function OrdersPage() {
               </div>
             </CardHeader>
             <CardContent>
+               <p className="text-sm text-muted-foreground font-semibold pb-2">Order #{order.id}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>Event on {order.eventDate}</span>
+                <span>Event on {format(new Date(order.eventDate), "PPP")}</span>
               </div>
             </CardContent>
             <CardFooter className="justify-between">
@@ -215,6 +219,10 @@ export default function OrdersPage() {
           </DialogHeader>
           <form onSubmit={handleAddNewOrder}>
             <div className="grid gap-4 py-4">
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="eventName" className="text-right">Event Name</Label>
+                <Input id="eventName" name="eventName" className="col-span-3" required />
+              </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="customer" className="text-right">Customer</Label>
                  <Select name="customer">
@@ -230,7 +238,7 @@ export default function OrdersPage() {
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="eventDate" className="text-right">Event Date</Label>
-                <Input type="date" id="eventDate" name="eventDate" className="col-span-3" />
+                <Input type="date" id="eventDate" name="eventDate" className="col-span-3" required/>
               </div>
             </div>
             <DialogFooter>

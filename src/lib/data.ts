@@ -1,6 +1,7 @@
 export type Order = {
   id: string
   customerName: string
+  eventName: string
   eventDate: string
   status: "Pending" | "In Progress" | "Completed" | "Cancelled"
   cancellationReason?: string
@@ -23,12 +24,12 @@ export type Customer = {
 }
 
 export const orders: Order[] = [
-  { id: "ORD001", customerName: "Alice Johnson", eventDate: "2024-08-15", status: "Completed" },
-  { id: "ORD002", customerName: "Bob Williams", eventDate: "2024-08-20", status: "In Progress" },
-  { id: "ORD003", customerName: "Charlie Brown", eventDate: "2024-09-01", status: "Pending" },
-  { id: "ORD004", customerName: "Diana Miller", eventDate: "2024-08-10", status: "Completed" },
-  { id: "ORD005", customerName: "Ethan Davis", eventDate: "2024-09-05", status: "Pending" },
-  { id: "ORD006", customerName: "Fiona Garcia", eventDate: "2024-08-25", status: "In Progress" },
+  { id: "ORD001", customerName: "Alice Johnson", eventName: "Birthday Party", eventDate: "2024-08-15", status: "Completed" },
+  { id: "ORD002", customerName: "Bob Williams", eventName: "Corporate Lunch", eventDate: "2024-08-20", status: "In Progress" },
+  { id: "ORD003", customerName: "Charlie Brown", eventName: "Wedding Anniversary", eventDate: "2024-09-01", status: "Pending" },
+  { id: "ORD004", customerName: "Diana Miller", eventName: "Graduation Celebration", eventDate: "2024-08-10", status: "Completed" },
+  { id: "ORD005", customerName: "Ethan Davis", eventName: "Team Outing", eventDate: "2024-09-05", status: "Pending" },
+  { id: "ORD006", customerName: "Fiona Garcia", eventName: "Holiday Feast", eventDate: "2024-08-25", status: "In Progress" },
 ]
 
 export const menuItems: MenuItem[] = [
