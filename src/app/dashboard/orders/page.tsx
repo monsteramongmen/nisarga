@@ -342,7 +342,7 @@ export default function OrdersPage() {
               <DialogTitle>{editingOrder ? `Update Order #${editingOrder.id}` : 'Add New Order'}</DialogTitle>
               <DialogDescription>{editingOrder ? 'Update details for this order.' : 'Enter details for the new order.'}</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSaveOrder} className="flex-grow overflow-hidden flex flex-col gap-4">
+            <form onSubmit={handleSaveOrder} id="orderForm" className="flex-grow overflow-hidden flex flex-col gap-4">
                 {editingOrder ? (
                     <Tabs defaultValue="details" className="flex-grow flex flex-col overflow-hidden">
                         <TabsList className="w-full grid grid-cols-3">
@@ -527,7 +527,7 @@ export default function OrdersPage() {
                 )}
                 <DialogFooter className="mt-auto pt-4 border-t">
                     <Button type="button" variant="outline" onClick={handleCloseForm}>Cancel</Button>
-                    <Button type="submit">{editingOrder ? "Update Order" : "Add Order"}</Button>
+                    <Button type="submit" form="orderForm">{editingOrder ? "Update Order" : "Add Order"}</Button>
                 </DialogFooter>
             </form>
         </DialogContent>
