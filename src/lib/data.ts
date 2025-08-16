@@ -2,7 +2,8 @@ export type Order = {
   id: string
   customerName: string
   eventDate: string
-  status: "Pending" | "In Progress" | "Completed"
+  status: "Pending" | "In Progress" | "Completed" | "Cancelled"
+  cancellationReason?: string
 }
 
 export type MenuItem = {
