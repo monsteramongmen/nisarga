@@ -87,10 +87,12 @@ export default function OrdersPage() {
   }, [tempItems])
 
   const filteredMenuItems = useMemo(() => {
+    const selectedItemIds = new Set(tempItems.map(item => item.menuItemId));
     return menuItems
+      .filter(item => !selectedItemIds.has(item.id))
       .filter(item => menuCategory === 'All' || item.category === menuCategory)
       .filter(item => item.name.toLowerCase().includes(menuSearch.toLowerCase()));
-  }, [menuSearch, menuCategory]);
+  }, [menuSearch, menuCategory, tempItems]);
 
 
   const handleOpenForm = (order: Order | null = null) => {
@@ -137,11 +139,16 @@ export default function OrdersPage() {
          return
        }
        const customer = initialCustomers.find(c => c.id === customerId)
+       if (!customer) {
+        toast({ variant: "destructive", title: "Error", description: "Customer not found." })
+        return
+       }
        const newOrder: Order = {
          id: `ORD${Date.now()}`,
          customerName: customer!.name,
          ...baseOrderData,
          status: "Pending",
+         items: [],
        }
        setOrders([newOrder, ...orders])
        toast({ title: "Success", description: "New order has been added." })
@@ -298,19 +305,22 @@ export default function OrdersPage() {
         ))}
       </div>
       
-      <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <Dialog open={isFormOpen} onOpenChange={(open) => {
+        if (!open) handleCloseForm()
+        else setFormOpen(open)
+      }}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingOrder ? `Update Order #${editingOrder.id}` : 'Add New Order'}</DialogTitle>
               <DialogDescription>{editingOrder ? 'Update details for this order.' : 'Enter details for the new order.'}</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSaveOrder} className="flex-grow overflow-hidden flex flex-col">
+            <form onSubmit={handleSaveOrder} className="flex-grow overflow-hidden flex flex-col gap-4">
                 {editingOrder ? (
                     <Tabs defaultValue="details" className="flex-grow flex flex-col overflow-hidden">
-                        <TabsList className="w-full">
-                            <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
-                            <TabsTrigger value="add_items" className="flex-1">Add Items</TabsTrigger>
-                            <TabsTrigger value="summary" className="flex-1">
+                        <TabsList className="w-full grid grid-cols-3">
+                            <TabsTrigger value="details">Details</TabsTrigger>
+                            <TabsTrigger value="add_items">Add Items</TabsTrigger>
+                            <TabsTrigger value="summary">
                                 Summary <Badge variant="secondary" className="ml-2">{orderSummary.totalItems}</Badge>
                             </TabsTrigger>
                         </TabsList>
@@ -343,8 +353,8 @@ export default function OrdersPage() {
                             </div>
                            </div>
                         </TabsContent>
-                        <TabsContent value="add_items" className="flex-grow flex flex-col overflow-y-auto pt-4">
-                            <div className="flex gap-4 mb-4 pr-4">
+                        <TabsContent value="add_items" className="flex-grow flex flex-col overflow-hidden pt-4">
+                            <div className="flex gap-4 mb-4 pr-4 shrink-0">
                                 <Input placeholder="Search items..." value={menuSearch} onChange={e => setMenuSearch(e.target.value)} />
                                 <Select value={menuCategory} onValueChange={(v: 'All' | 'Veg' | 'Non-Veg') => setMenuCategory(v)}>
                                     <SelectTrigger className="w-[180px]">
@@ -371,42 +381,44 @@ export default function OrdersPage() {
                                 </div>
                             </ScrollArea>
                         </TabsContent>
-                        <TabsContent value="summary" className="flex-grow flex flex-col overflow-y-auto pt-4">
-                            <ScrollArea className="flex-grow pr-4 -mr-4">
-                            <div className="space-y-2">
-                                {tempItems.length > 0 ? tempItems.map(item => (
-                                <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
-                                    <div className="flex-1">
-                                        <p className="font-medium">{item.name}</p>
-                                        <p className="text-sm text-muted-foreground">@ ₹{item.price.toFixed(2)}</p>
+                        <TabsContent value="summary" className="flex-grow flex flex-col overflow-hidden pt-4">
+                            <div className="flex-grow overflow-y-auto">
+                                <ScrollArea className="h-full pr-4 -mr-4">
+                                <div className="space-y-2">
+                                    {tempItems.length > 0 ? tempItems.map(item => (
+                                    <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                                        <div className="flex-1">
+                                            <p className="font-medium">{item.name}</p>
+                                            <p className="text-sm text-muted-foreground">@ ₹{item.price.toFixed(2)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                        <Input 
+                                            type="number" 
+                                            className="w-20 h-8 text-center"
+                                            value={item.quantity}
+                                            onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
+                                            min="0"
+                                        />
+                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                        </div>
+                                        <div className="w-24 text-right font-semibold">
+                                         ₹{(item.price * item.quantity).toFixed(2)}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                    <Input 
-                                        type="number" 
-                                        className="w-20 h-8 text-center"
-                                        value={item.quantity}
-                                        onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
-                                        min="0"
-                                    />
-                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    )) : (
+                                    <div className="text-sm text-muted-foreground text-center py-16 h-full flex flex-col justify-center items-center">
+                                        <ShoppingCart className="mx-auto h-12 w-12 mb-4" />
+                                        <h3 className="text-lg font-semibold">No items added yet.</h3>
+                                        <p>Head to the 'Add Items' tab to select menu items.</p>
                                     </div>
-                                    <div className="w-24 text-right font-semibold">
-                                     ₹{(item.price * item.quantity).toFixed(2)}
-                                    </div>
+                                    )}
                                 </div>
-                                )) : (
-                                <div className="text-sm text-muted-foreground text-center py-16">
-                                    <ShoppingCart className="mx-auto h-12 w-12 mb-4" />
-                                    <h3 className="text-lg font-semibold">No items added yet.</h3>
-                                    <p>Head to the 'Add Items' tab to select menu items.</p>
-                                </div>
-                                )}
+                                </ScrollArea>
                             </div>
-                            </ScrollArea>
                             {tempItems.length > 0 && (
-                            <div className="mt-4 p-4 bg-muted rounded-lg space-y-2 border-t pr-4">
+                            <div className="mt-4 p-4 bg-muted rounded-lg space-y-2 border-t pr-4 shrink-0">
                                 <div className="flex justify-between text-lg font-bold">
                                     <span>Final Amount</span>
                                     <span>₹{orderSummary.totalAmount.toFixed(2)}</span>
@@ -446,7 +458,7 @@ export default function OrdersPage() {
                         </div>
                     </div>
                 )}
-                <DialogFooter className="mt-8 pt-4 border-t">
+                <DialogFooter className="mt-auto pt-4 border-t">
                     <Button type="button" variant="outline" onClick={handleCloseForm}>Cancel</Button>
                     <Button type="submit">{editingOrder ? "Update Order" : "Add Order"}</Button>
                 </DialogFooter>
