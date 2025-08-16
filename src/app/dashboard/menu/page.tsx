@@ -88,11 +88,11 @@ export default function MenuPage() {
   }
 
   return (
-    <div>
+    <>
        <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Menu Management</h1>
-          <p className="text-muted-foreground">Add, edit, or delete your menu items.</p>
+          <h1 className="text-lg font-semibold md:text-2xl">Menu Management</h1>
+          <p className="text-muted-foreground text-sm">Add, edit, or delete your menu items.</p>
         </div>
         <Button size="sm" onClick={() => handleOpenDialog()}>
           <PlusCircle className="h-4 w-4 mr-2" />
@@ -178,6 +178,6 @@ export default function MenuPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

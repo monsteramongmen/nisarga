@@ -45,46 +45,43 @@ export default function OrdersPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Recent Orders</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {orders.map((order) => (
-          <Card key={order.id}>
-            <CardHeader>
-              <CardTitle>Order #{order.id}</CardTitle>
-              <CardDescription className="flex items-center gap-2 pt-1">
-                <User className="h-4 w-4" /> {order.customerName}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>Event on {order.eventDate}</span>
-              </div>
-            </CardContent>
-            <CardFooter className="justify-between">
-              <Select
-                value={order.status}
-                onValueChange={(value: Order["status"]) =>
-                  handleStatusChange(order.id, value)
-                }
-              >
-                <SelectTrigger className="w-fit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-               <Badge className={`${getStatusClass(order.status)}`} variant="outline">
-                  {order.status}
-                </Badge>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {orders.map((order) => (
+        <Card key={order.id}>
+          <CardHeader>
+            <CardTitle>Order #{order.id}</CardTitle>
+            <CardDescription className="flex items-center gap-2 pt-1">
+              <User className="h-4 w-4" /> {order.customerName}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>Event on {order.eventDate}</span>
+            </div>
+          </CardContent>
+          <CardFooter className="justify-between">
+            <Select
+              value={order.status}
+              onValueChange={(value: Order["status"]) =>
+                handleStatusChange(order.id, value)
+              }
+            >
+              <SelectTrigger className="w-fit">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+             <Badge className={`${getStatusClass(order.status)}`} variant="outline">
+                {order.status}
+              </Badge>
+          </CardFooter>
+        </Card>
+      ))}
     </div>
   )
 }

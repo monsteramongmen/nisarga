@@ -1,19 +1,22 @@
 "use client"
 
-import React, { useEffect } from "react"
+import React from "use client"
 import { usePathname, useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, LogOut } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import { DashboardNav, navItems } from "@/components/dashboard-nav"
-import { UserNav } from "@/components/user-nav"
 import {
   SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarContent,
+  SidebarFooter,
   SidebarTrigger,
   SidebarInset,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
 export default function DashboardLayout({
@@ -21,14 +24,14 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
   const currentPage = navItems.find((item) => item.href === pathname)
   const pageTitle = currentPage ? currentPage.label : ""
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace("/login")
     }
@@ -46,23 +49,32 @@ export default function DashboardLayout({
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <h1 className="text-2xl font-bold text-sidebar-primary group-data-[collapsible=icon]:hidden">
-            Nisarga
-          </h1>
+           <div className="flex items-center gap-2">
+            <SidebarTrigger className="md:hidden" />
+            <h1 className="text-2xl font-bold text-sidebar-primary group-data-[collapsible=icon]:hidden">
+              Nisarga
+            </h1>
+           </div>
         </SidebarHeader>
         <SidebarContent>
           <DashboardNav />
         </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => logout()} tooltip="Sign Out">
+                <LogOut />
+                <span>Sign Out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
-          <SidebarTrigger className="md:hidden" />
-          <h1 className="text-xl font-semibold md:text-2xl">{pageTitle}</h1>
-          <div className="ml-auto">
-            <UserNav />
-          </div>
-        </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
+           <div className="flex items-center mb-6">
+             <h1 className="text-2xl font-bold">{pageTitle}</h1>
+           </div>
           {children}
         </main>
       </SidebarInset>
