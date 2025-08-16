@@ -81,9 +81,10 @@ export default function OrdersPage() {
   }, [orders, searchTerm, statusFilter])
 
   const orderSummary = useMemo(() => {
-    const totalItems = tempItems.reduce((sum, item) => sum + item.quantity, 0)
+    const totalItems = tempItems.length
+    const totalQuantity = tempItems.reduce((sum, item) => sum + item.quantity, 0)
     const totalAmount = tempItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    return { totalItems, totalAmount }
+    return { totalItems, totalAmount, totalQuantity }
   }, [tempItems])
 
   const filteredMenuItems = useMemo(() => {
@@ -424,8 +425,8 @@ export default function OrdersPage() {
                                     <span>₹{orderSummary.totalAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-muted-foreground">
-                                    <span>Total Items</span>
-                                    <span>{orderSummary.totalItems}</span>
+                                    <span>Total Quantity</span>
+                                    <span>{orderSummary.totalQuantity}</span>
                                 </div>
                             </div>
                             )}
@@ -492,3 +493,5 @@ export default function OrdersPage() {
     </>
   )
 }
+
+    
