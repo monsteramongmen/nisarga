@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download } from "lucide-react"
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download, Trash2 } from "lucide-react"
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 
 import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
@@ -63,14 +64,6 @@ const initialQuotations: Quotation[] = [
     ], orderType: 'Individual'},
     { id: "QUO002", customerName: "Fiona Garcia", eventName: "Product Launch", eventDate: "2024-09-20", status: "Sent", items: [], orderType: 'Individual'},
 ];
-
-// This is needed to extend the jsPDF interface for the autoTable plugin
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
-
 
 export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<Quotation[]>(initialQuotations)
@@ -225,77 +218,139 @@ export default function QuotationsPage() {
   }
 
   const handleDownloadPdf = (quotation: Quotation) => {
-    const doc = new jsPDF();
     const customer = initialCustomers.find(c => c.name === quotation.customerName);
-    
-    // Header
-    doc.setFontSize(22);
-    doc.text("Quotation", 105, 20, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text("Nisarga Catering Services", 105, 28, { align: 'center' });
-
-
-    // Quotation Details
-    doc.setFontSize(10);
-    doc.text(`Quotation ID: ${quotation.id}`, 14, 40);
-    doc.text(`Date: ${format(new Date(), "PPP")}`, 14, 45);
-    
-    // Customer and Event Details
-    doc.text(`Customer: ${quotation.customerName}`, 14, 55);
-    if(customer?.phone) doc.text(`Phone: ${customer.phone}`, 14, 60);
-    if(customer?.email) doc.text(`Email: ${customer.email}`, 14, 65);
-    
-    doc.text(`Event: ${quotation.eventName}`, 140, 55);
-    doc.text(`Event Date: ${format(new Date(quotation.eventDate), "PPP")}`, 140, 60);
-
     const items = quotation.items || [];
     let finalAmount = 0;
-    let tableBody: (string | number)[][] = [];
 
+    const tableBody: any[] = [];
+    
     if (quotation.orderType === 'Individual') {
         finalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        tableBody = items.map(item => [
-            item.name,
-            item.quantity,
-            `₹${item.price.toFixed(2)}`,
-            `₹${(item.price * item.quantity).toFixed(2)}`,
-        ]);
-        doc.autoTable({
-            startY: 75,
-            head: [['Item', 'Quantity', 'Unit Price', 'Total']],
-            body: tableBody,
-            theme: 'striped',
-            headStyles: { fillColor: [33, 150, 243] },
+        tableBody.push(['Item', 'Quantity', 'Unit Price', 'Total']);
+        items.forEach(item => {
+            tableBody.push([
+                item.name,
+                item.quantity,
+                `₹${item.price.toFixed(2)}`,
+                `₹${(item.price * item.quantity).toFixed(2)}`,
+            ]);
         });
     } else { // Plate based
         finalAmount = (quotation.perPlatePrice || 0) * (quotation.numberOfPlates || 0);
-        tableBody = items.map(item => [item.name]);
-        doc.autoTable({
-            startY: 75,
-            head: [['Included Menu Items']],
-            body: tableBody,
-            theme: 'striped',
-            headStyles: { fillColor: [33, 150, 243] },
+        tableBody.push(['Included Menu Items']);
+        items.forEach(item => {
+            tableBody.push([item.name]);
         });
-        
-        const plateInfoStartY = doc.autoTable.previous.finalY + 10;
-        doc.setFontSize(12);
-        doc.text(`Price Per Plate: ₹${(quotation.perPlatePrice || 0).toFixed(2)}`, 14, plateInfoStartY);
-        doc.text(`Number of Plates: ${quotation.numberOfPlates || 0}`, 14, plateInfoStartY + 7);
     }
-    
-    // Total Amount
-    const finalY = doc.autoTable.previous.finalY || 75;
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total Amount: ₹${finalAmount.toFixed(2)}`, 14, finalY + 15);
 
-    // Footer
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'italic');
-    doc.text("Thank you for your business!", 105, doc.internal.pageSize.height - 15, { align: 'center' });
+    const docDefinition: any = {
+        content: [
+            { text: 'Quotation', style: 'header', alignment: 'center' },
+            { text: 'Nisarga Catering Services', style: 'subheader', alignment: 'center', margin: [0, 0, 0, 20] },
+            
+            {
+                columns: [
+                    {
+                        width: '*',
+                        text: [
+                            { text: 'Quotation ID: ', bold: true }, `${quotation.id}\n`,
+                            { text: 'Date: ', bold: true }, `${format(new Date(), "PPP")}`,
+                        ]
+                    },
+                    {
+                        width: 'auto',
+                        text: ''
+                    }
+                ],
+                columnGap: 10,
+                margin: [0, 0, 0, 10]
+            },
+            {
+                columns: [
+                    {
+                        width: '*',
+                        text: [
+                            { text: 'Customer: ', bold: true }, `${quotation.customerName}\n`,
+                            ...(customer?.phone ? [{ text: 'Phone: ', bold: true }, `${customer.phone}\n`] : []),
+                            ...(customer?.email ? [{ text: 'Email: ', bold: true }, `${customer.email}`] : []),
+                        ]
+                    },
+                    {
+                        width: '*',
+                         alignment: 'right',
+                        text: [
+                            { text: 'Event: ', bold: true }, `${quotation.eventName}\n`,
+                            { text: 'Event Date: ', bold: true }, `${format(new Date(quotation.eventDate), "PPP")}`,
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: {
+                    headerRows: 1,
+                    widths: quotation.orderType === 'Individual' ? ['*', 'auto', 'auto', 'auto'] : ['*'],
+                    body: tableBody,
+                },
+                layout: {
+                  fillColor: function (rowIndex: number) {
+                    return (rowIndex === 0) ? '#337ab7' : null;
+                  },
+                  hLineWidth: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.body.length) ? 2 : 1;
+                  },
+                  vLineWidth: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.widths.length) ? 2 : 1;
+                  },
+                  hLineColor: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.body.length) ? 'black' : 'gray';
+                  },
+                  vLineColor: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.widths.length) ? 'black' : 'gray';
+                  },
+                  paddingLeft: function(i: number, node: any) { return 5; },
+                  paddingRight: function(i: number, node: any) { return 5; },
+                  paddingTop: function(i: number, node: any) { return 5; },
+                  paddingBottom: function(i: number, node: any) { return 5; },
+                }
+            },
+            ...(quotation.orderType === 'Plate' ? [
+              { text: `Price Per Plate: ₹${(quotation.perPlatePrice || 0).toFixed(2)}`, margin: [0, 10, 0, 5]},
+              { text: `Number of Plates: ${quotation.numberOfPlates || 0}`, margin: [0, 0, 0, 10]}
+            ] : []),
+            {
+              text: `Total Amount: ₹${finalAmount.toFixed(2)}`,
+              style: 'total',
+              alignment: 'right',
+              margin: [0, 20, 0, 0]
+            },
+            {
+              text: 'Thank you for your business!',
+              style: 'footer',
+              alignment: 'center',
+              italics: true,
+              margin: [0, 40, 0, 0]
+            }
+        ],
+        styles: {
+            header: {
+                fontSize: 22,
+                bold: true
+            },
+            subheader: {
+                fontSize: 12
+            },
+            total: {
+                fontSize: 14,
+                bold: true,
+            },
+            footer: {
+                fontSize: 10
+            }
+        }
+    };
 
-    doc.save(`Quotation-${quotation.id}.pdf`);
+    pdfMake.createPdf(docDefinition).download(`Quotation-${quotation.id}.pdf`);
   };
 
   const getStatusClass = (status: Quotation["status"]) => {
@@ -495,12 +550,12 @@ export default function QuotationsPage() {
                                                 min="0"
                                             />
                                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                                <Pencil className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
                                          ) : (
                                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                                <Pencil className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         )}
                                         {tempOrderType === 'Individual' && (
