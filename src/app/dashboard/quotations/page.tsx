@@ -1,7 +1,10 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical, Pencil, Trash2, ShoppingCart, FileText } from "lucide-react"
+import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download } from "lucide-react"
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
 
 import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
 import { orders as initialOrders, customers as initialCustomers, menuItems } from "@/lib/data"
@@ -40,7 +43,6 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -55,9 +57,19 @@ const statusHierarchy: Quotation["status"][] = ["Draft", "Sent", "Accepted", "De
 
 // Mock data for quotations, can be replaced with API calls
 const initialQuotations: Quotation[] = [
-    { id: "QUO001", customerName: "Ethan Davis", eventName: "Summer BBQ", eventDate: "2024-09-10", status: "Draft", items: [], orderType: 'Individual'},
+    { id: "QUO001", customerName: "Ethan Davis", eventName: "Summer BBQ", eventDate: "2024-09-10", status: "Draft", items: [
+        { menuItemId: 'MENU01', name: 'Caprese Skewers', price: 625.50, quantity: 10 },
+        { menuItemId: 'MENU02', name: 'Chicken Satay', price: 830.00, quantity: 15 },
+    ], orderType: 'Individual'},
     { id: "QUO002", customerName: "Fiona Garcia", eventName: "Product Launch", eventDate: "2024-09-20", status: "Sent", items: [], orderType: 'Individual'},
 ];
+
+// This is needed to extend the jsPDF interface for the autoTable plugin
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 
 export default function QuotationsPage() {
@@ -212,6 +224,80 @@ export default function QuotationsPage() {
     }
   }
 
+  const handleDownloadPdf = (quotation: Quotation) => {
+    const doc = new jsPDF();
+    const customer = initialCustomers.find(c => c.name === quotation.customerName);
+    
+    // Header
+    doc.setFontSize(22);
+    doc.text("Quotation", 105, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text("Nisarga Catering Services", 105, 28, { align: 'center' });
+
+
+    // Quotation Details
+    doc.setFontSize(10);
+    doc.text(`Quotation ID: ${quotation.id}`, 14, 40);
+    doc.text(`Date: ${format(new Date(), "PPP")}`, 14, 45);
+    
+    // Customer and Event Details
+    doc.text(`Customer: ${quotation.customerName}`, 14, 55);
+    if(customer?.phone) doc.text(`Phone: ${customer.phone}`, 14, 60);
+    if(customer?.email) doc.text(`Email: ${customer.email}`, 14, 65);
+    
+    doc.text(`Event: ${quotation.eventName}`, 140, 55);
+    doc.text(`Event Date: ${format(new Date(quotation.eventDate), "PPP")}`, 140, 60);
+
+    const items = quotation.items || [];
+    let finalAmount = 0;
+    let tableBody: (string | number)[][] = [];
+
+    if (quotation.orderType === 'Individual') {
+        finalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        tableBody = items.map(item => [
+            item.name,
+            item.quantity,
+            `₹${item.price.toFixed(2)}`,
+            `₹${(item.price * item.quantity).toFixed(2)}`,
+        ]);
+        doc.autoTable({
+            startY: 75,
+            head: [['Item', 'Quantity', 'Unit Price', 'Total']],
+            body: tableBody,
+            theme: 'striped',
+            headStyles: { fillColor: [33, 150, 243] },
+        });
+    } else { // Plate based
+        finalAmount = (quotation.perPlatePrice || 0) * (quotation.numberOfPlates || 0);
+        tableBody = items.map(item => [item.name]);
+        doc.autoTable({
+            startY: 75,
+            head: [['Included Menu Items']],
+            body: tableBody,
+            theme: 'striped',
+            headStyles: { fillColor: [33, 150, 243] },
+        });
+        
+        const plateInfoStartY = doc.autoTable.previous.finalY + 10;
+        doc.setFontSize(12);
+        doc.text(`Price Per Plate: ₹${(quotation.perPlatePrice || 0).toFixed(2)}`, 14, plateInfoStartY);
+        doc.text(`Number of Plates: ${quotation.numberOfPlates || 0}`, 14, plateInfoStartY + 7);
+    }
+    
+    // Total Amount
+    const finalY = doc.autoTable.previous.finalY || 75;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Amount: ₹${finalAmount.toFixed(2)}`, 14, finalY + 15);
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text("Thank you for your business!", 105, doc.internal.pageSize.height - 15, { align: 'center' });
+
+    doc.save(`Quotation-${quotation.id}.pdf`);
+  };
+
   const getStatusClass = (status: Quotation["status"]) => {
     switch (status) {
       case "Draft": return "bg-gray-500/20 text-gray-700 border-gray-500/30"
@@ -275,6 +361,9 @@ export default function QuotationsPage() {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleOpenForm(quotation)}>
                                     <Pencil className="mr-2 h-4 w-4" /> Update Quotation
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDownloadPdf(quotation)}>
+                                    <Download className="mr-2 h-4 w-4" /> Download PDF
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -406,12 +495,12 @@ export default function QuotationsPage() {
                                                 min="0"
                                             />
                                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                                <Trash2 className="h-4 w-4" />
+                                                <Pencil className="h-4 w-4" />
                                             </Button>
                                         </div>
                                          ) : (
                                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                                <Trash2 className="h-4 w-4" />
+                                                <Pencil className="h-4 w-4" />
                                             </Button>
                                         )}
                                         {tempOrderType === 'Individual' && (
