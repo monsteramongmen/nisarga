@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Home, Phone, Search, PlusCircle } from "lucide-react"
+import { Home, Phone, Search, PlusCircle, Pencil } from "lucide-react"
 import { customers as initialCustomers, Customer } from "@/lib/data"
 import { getAvatarColor, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -30,6 +30,7 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers)
   const [isDialogOpen, setDialogOpen] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const { toast } = useToast()
 
   const filteredCustomers = useMemo(() => {
@@ -43,21 +44,54 @@ export default function CustomersPage() {
     )
   }, [searchTerm, customers])
 
+  const handleOpenDialog = (customer: Customer | null = null) => {
+    setEditingCustomer(customer)
+    setDialogOpen(true)
+  }
+
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    const newCustomer: Customer = {
-      id: `CUST${Date.now()}`,
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      address: formData.get("address") as string,
-      totalOrders: 0,
+    const phone = formData.get("phone") as string
+
+    const isPhoneUnique = customers.every(
+      (c) => c.phone !== phone || (editingCustomer && c.id === editingCustomer.id)
+    )
+
+    if (!isPhoneUnique) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Phone number already exists for another customer.",
+      })
+      return
     }
 
-    setCustomers([newCustomer, ...customers])
-    toast({ title: "Success", description: "New customer added." })
+    const customerData: Omit<Customer, "id" | "totalOrders"> = {
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      phone: phone,
+      address: formData.get("address") as string,
+    }
+
+    if (editingCustomer) {
+      const updatedCustomer = { ...editingCustomer, ...customerData }
+      setCustomers(
+        customers.map((c) => (c.id === editingCustomer.id ? updatedCustomer : c))
+      )
+      toast({ title: "Success", description: "Customer updated." })
+    } else {
+      const newCustomer: Customer = {
+        ...customerData,
+        id: `CUST${Date.now()}`,
+        totalOrders: 0,
+      }
+      setCustomers([newCustomer, ...customers])
+      toast({ title: "Success", description: "New customer added." })
+    }
+
     setDialogOpen(false)
+    setEditingCustomer(null)
   }
 
   return (
@@ -73,7 +107,7 @@ export default function CustomersPage() {
             className="pl-10"
           />
         </div>
-        <Button size="sm" onClick={() => setDialogOpen(true)} className="ml-4">
+        <Button size="sm" onClick={() => handleOpenDialog()} className="ml-4">
           <PlusCircle className="h-4 w-4 mr-2" />
           Add Customer
         </Button>
@@ -81,16 +115,21 @@ export default function CustomersPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filteredCustomers.map((customer) => (
           <Card key={customer.id}>
-            <CardHeader className="flex flex-row items-center gap-4">
-              <Avatar
-                className="w-10 h-10"
-                style={{ backgroundColor: getAvatarColor(customer.name) }}
-              >
-                <AvatarFallback className="text-white bg-transparent">
-                  {getInitials(customer.name)}
-                </AvatarFallback>
-              </Avatar>
-              <CardTitle className="text-base">{customer.name}</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+               <div className="flex items-center gap-4">
+                  <Avatar
+                    className="w-10 h-10"
+                    style={{ backgroundColor: getAvatarColor(customer.name) }}
+                  >
+                    <AvatarFallback className="text-white bg-transparent">
+                      {getInitials(customer.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <CardTitle className="text-base">{customer.name}</CardTitle>
+               </div>
+               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(customer)}>
+                  <Pencil className="h-4 w-4" />
+               </Button>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
                <div className="flex items-start gap-2">
@@ -112,36 +151,41 @@ export default function CustomersPage() {
         ))}
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
+          setDialogOpen(isOpen)
+          if (!isOpen) {
+              setEditingCustomer(null)
+          }
+      }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogTitle>{editingCustomer ? "Edit Customer" : "Add New Customer"}</DialogTitle>
             <DialogDescription>
-              Enter the details of the new customer.
+              {editingCustomer ? "Update the customer's details." : "Enter the details of the new customer."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" name="name" className="col-span-3" required />
+                <Input id="name" name="name" defaultValue={editingCustomer?.name} className="col-span-3" required />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="email" className="text-right">Email</Label>
-                <Input id="email" name="email" type="email" className="col-span-3" />
+                <Input id="email" name="email" type="email" defaultValue={editingCustomer?.email} className="col-span-3" />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phone" className="text-right">Phone</Label>
-                <Input id="phone" name="phone" className="col-span-3" required />
+                <Input id="phone" name="phone" defaultValue={editingCustomer?.phone} className="col-span-3" required />
               </div>
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label htmlFor="address" className="text-right pt-2">Address</Label>
-                <Textarea id="address" name="address" className="col-span-3" required />
+                <Textarea id="address" name="address" defaultValue={editingCustomer?.address} className="col-span-3" required />
               </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit">Add Customer</Button>
+              <Button type="submit">{editingCustomer ? "Save Changes" : "Add Customer"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
