@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { MenuItem } from '@/lib/data';
 
 const menuCollection = collection(db, 'menuItems');
@@ -21,7 +21,8 @@ export const getMenuItems = async (): Promise<MenuItem[]> => {
 
 export const addMenuItem = async (itemData: Omit<MenuItem, 'id'>): Promise<MenuItem> => {
     const docRef = await addDoc(menuCollection, itemData);
-    return { id: docRef.id, ...itemData };
+    const newDoc = await getDoc(docRef);
+    return fromFirestore(newDoc as QueryDocumentSnapshot<DocumentData>);
 };
 
 export const updateMenuItem = async (id: string, itemData: Partial<MenuItem>): Promise<void> => {

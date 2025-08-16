@@ -52,7 +52,7 @@ export default function ReportsPage() {
             
             const monthlyRevenue = completedOrders
                 .filter(order => {
-                    const completedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated);
+                    const completedDate = typeof order.lastUpdated === 'string' ? new Date(order.lastUpdated) : order.lastUpdated.toDate();
                     return completedDate >= monthStart && completedDate <= monthEnd;
                 })
                 .reduce((acc, order) => {
@@ -64,7 +64,7 @@ export default function ReportsPage() {
                 }, 0);
 
             const monthlyOrders = completedOrders.filter(order => {
-                const completedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated);
+                const completedDate = typeof order.lastUpdated === 'string' ? new Date(order.lastUpdated) : order.lastUpdated.toDate();
                 return completedDate >= monthStart && completedDate <= monthEnd;
             }).length;
 

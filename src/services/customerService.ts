@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, DocumentData, QueryDocumentSnapshot, getDoc } from 'firebase/firestore';
 import type { Customer } from '@/lib/data';
 
 const customerCollection = collection(db, 'customers');
@@ -23,7 +23,8 @@ export const getCustomers = async (): Promise<Customer[]> => {
 
 export const addCustomer = async (customerData: Omit<Customer, 'id'>): Promise<Customer> => {
     const docRef = await addDoc(customerCollection, customerData);
-    return { id: docRef.id, ...customerData };
+    const newDoc = await getDoc(docRef);
+    return fromFirestore(newDoc as QueryDocumentSnapshot<DocumentData>);
 };
 
 export const updateCustomer = async (id: string, customerData: Partial<Customer>): Promise<void> => {

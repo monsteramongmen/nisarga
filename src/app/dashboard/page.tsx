@@ -69,7 +69,7 @@ export default function Dashboard() {
         }, 0);
 
         const upcomingEvents = orders.filter(order => {
-          const eventDate = order.eventDate instanceof Timestamp ? order.eventDate.toDate() : new Date(order.eventDate);
+          const eventDate = typeof order.eventDate === 'string' ? new Date(order.eventDate) : order.eventDate.toDate();
           return eventDate > new Date() && (order.status === 'Pending' || order.status === 'Confirmed' || order.status === 'In Progress');
         }).length;
         
@@ -82,7 +82,7 @@ export default function Dashboard() {
           const revenue = orders
             .filter(order => {
               if (order.status !== 'Completed') return false;
-              const completedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated);
+              const completedDate = typeof order.lastUpdated === 'string' ? new Date(order.lastUpdated) : order.lastUpdated.toDate();
               return startOfDay(completedDate).getTime() === startOfDay(day).getTime();
             })
             .reduce((acc, order) => {

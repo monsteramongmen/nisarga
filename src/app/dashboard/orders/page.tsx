@@ -167,7 +167,7 @@ export default function OrdersPage() {
   }
   
   const formatDateForInput = (date: string | Timestamp) => {
-    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    const d = typeof date === 'string' ? new Date(date) : date.toDate();
     return format(d, 'yyyy-MM-dd');
   }
 
@@ -179,13 +179,13 @@ export default function OrdersPage() {
       if (editingOrder) {
         const updatedOrderData: Partial<Order> = {
             eventName: formData.get("eventName") as string,
-            eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+            eventDate: Timestamp.fromDate(new Date(formData.get("eventDate") as string)),
             status: formData.get("status") as Order["status"],
             orderType: tempOrderType,
             items: tempItems,
             perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
             numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
-            lastUpdated: new Date().toISOString(),
+            lastUpdated: Timestamp.now(),
         }
 
         if (updatedOrderData.status === "Cancelled" && updatedOrderData.status !== editingOrder.status) {
@@ -194,7 +194,7 @@ export default function OrdersPage() {
         }
         
         await updateOrder(editingOrder.id, updatedOrderData)
-        const updatedOrder = { ...editingOrder, ...updatedOrderData } as Order;
+        const updatedOrder = { ...editingOrder, ...updatedOrderData, eventDate: (updatedOrderData.eventDate as Timestamp).toDate().toISOString() } as Order;
         setOrders(orders.map(o => o.id === editingOrder.id ? updatedOrder : o))
         toast({ title: "Success", description: "Order updated successfully." })
 
@@ -212,11 +212,11 @@ export default function OrdersPage() {
          const newOrderData: Omit<Order, "id"> = {
            customerName: customer!.name,
            eventName: formData.get("eventName") as string,
-           eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+           eventDate: Timestamp.fromDate(new Date(formData.get("eventDate") as string)),
            status: "Pending",
            items: [],
            orderType: 'Individual',
-           lastUpdated: new Date().toISOString(),
+           lastUpdated: Timestamp.now(),
            createdAt: Timestamp.now(),
          }
          const newOrder = await addOrder(newOrderData)
@@ -236,7 +236,7 @@ export default function OrdersPage() {
     const formData = new FormData(e.currentTarget)
     const reason = formData.get("reason") as string
     
-    const updatedOrderData = { status: "Cancelled" as const, cancellationReason: reason, lastUpdated: new Date().toISOString() };
+    const updatedOrderData = { status: "Cancelled" as const, cancellationReason: reason, lastUpdated: Timestamp.now() };
 
     try {
       await updateOrder(editingOrder.id, updatedOrderData);
@@ -280,7 +280,7 @@ export default function OrdersPage() {
   }
   
   const formatDisplayDate = (date: string | Timestamp) => {
-    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    const d = typeof date === 'string' ? new Date(date) : date.toDate();
     return format(d, 'PPP');
   }
 
@@ -310,7 +310,7 @@ export default function OrdersPage() {
         });
     }
     
-    const lastUpdatedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated)
+    const lastUpdatedDate = typeof order.lastUpdated === 'string' ? new Date(order.lastUpdated) : order.lastUpdated.toDate();
 
     const docDefinition: any = {
         content: [

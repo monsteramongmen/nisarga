@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, DocumentData, QueryDocumentSnapshot, Timestamp, orderBy, query, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, DocumentData, QueryDocumentSnapshot, Timestamp, orderBy, query, writeBatch, getDoc } from 'firebase/firestore';
 import type { Quotation, Order } from '@/lib/data';
 
 const quotationCollection = collection(db, 'quotations');
@@ -11,8 +11,8 @@ const fromFirestore = (snapshot: QueryDocumentSnapshot<DocumentData>): Quotation
     return {
         id: snapshot.id,
         ...data,
-        eventDate: data.eventDate,
-        lastUpdated: data.lastUpdated,
+        eventDate: data.eventDate instanceof Timestamp ? data.eventDate.toDate().toISOString() : data.eventDate,
+        lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : data.lastUpdated,
         createdAt: data.createdAt,
     } as Quotation;
 }
@@ -25,12 +25,20 @@ export const getQuotations = async (): Promise<Quotation[]> => {
 
 export const addQuotation = async (quotationData: Omit<Quotation, 'id'>): Promise<Quotation> => {
     const docRef = await addDoc(quotationCollection, quotationData);
-    return { id: docRef.id, ...quotationData };
+    const newDoc = await getDoc(docRef);
+    return fromFirestore(newDoc as QueryDocumentSnapshot<DocumentData>);
 };
 
 export const updateQuotation = async (id: string, quotationData: Partial<Quotation>): Promise<void> => {
     const quotationDoc = doc(db, 'quotations', id);
-    await updateDoc(quotationDoc, quotationData);
+    const dataToUpdate = { ...quotationData };
+    if (dataToUpdate.eventDate && typeof dataToUpdate.eventDate === 'string') {
+        dataToUpdate.eventDate = Timestamp.fromDate(new Date(dataToUpdate.eventDate));
+    }
+    if (dataToUpdate.lastUpdated && typeof dataToUpdate.lastUpdated === 'string') {
+        dataToUpdate.lastUpdated = Timestamp.fromDate(new Date(dataToUpdate.lastUpdated));
+    }
+    await updateDoc(quotationDoc, dataToUpdate);
 };
 
 export const addOrderFromQuotation = async (quotation: Quotation): Promise<string> => {
@@ -39,13 +47,13 @@ export const addOrderFromQuotation = async (quotation: Quotation): Promise<strin
     const newOrder: Omit<Order, 'id'> = {
       customerName: quotation.customerName,
       eventName: quotation.eventName,
-      eventDate: quotation.eventDate,
+      eventDate: Timestamp.fromDate(new Date(quotation.eventDate)),
       status: 'Confirmed',
       items: quotation.items,
       orderType: quotation.orderType,
       perPlatePrice: quotation.perPlatePrice,
       numberOfPlates: quotation.numberOfPlates,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: Timestamp.now(),
       createdAt: Timestamp.now()
     };
     

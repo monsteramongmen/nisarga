@@ -149,7 +149,7 @@ export default function QuotationsPage() {
   }, [menuSearch, menuCategory, tempItems]);
   
   const formatDateForInput = (date: string | Timestamp) => {
-    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    const d = typeof date === 'string' ? new Date(date) : date.toDate();
     return format(d, 'yyyy-MM-dd');
   }
 
@@ -214,11 +214,11 @@ export default function QuotationsPage() {
          const newQuotationData: Omit<Quotation, "id"> = {
            customerName: customer!.name,
            eventName: formData.get("eventName") as string,
-           eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+           eventDate: Timestamp.fromDate(new Date(formData.get("eventDate") as string)),
            status: "Draft",
            items: [],
            orderType: 'Individual',
-           lastUpdated: new Date().toISOString(),
+           lastUpdated: Timestamp.now(),
            createdAt: Timestamp.now()
          }
          const newQuotation = await addQuotation(newQuotationData);
@@ -277,7 +277,7 @@ export default function QuotationsPage() {
   }
   
   const formatDisplayDate = (date: string | Timestamp) => {
-    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    const d = typeof date === 'string' ? new Date(date) : date.toDate();
     return format(d, 'PPP');
   }
 
