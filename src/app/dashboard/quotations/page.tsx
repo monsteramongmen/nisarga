@@ -4,7 +4,10 @@ import React, { useState, useMemo } from "react"
 import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download, Trash2 } from "lucide-react"
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+
+if (pdfFonts.pdfMake) {
+  pdfMake.vfs = pdfFonts.pdfMake.vfs;
+}
 
 
 import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
