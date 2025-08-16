@@ -44,6 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 const statusHierarchy: Order["status"][] = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled"]
 
@@ -55,7 +56,12 @@ export default function OrdersPage() {
   const [isCancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
+  
   const [tempItems, setTempItems] = useState<OrderItem[]>([])
+  const [tempOrderType, setTempOrderType] = useState<Order['orderType']>('Individual');
+  const [tempPerPlatePrice, setTempPerPlatePrice] = useState<number>(0);
+  const [tempNumberOfPlates, setTempNumberOfPlates] = useState<number>(1);
+
   const [menuSearch, setMenuSearch] = useState('');
   const [menuCategory, setMenuCategory] = useState<'All' | 'Veg' | 'Non-Veg'>('All');
 
@@ -83,9 +89,16 @@ export default function OrdersPage() {
   const orderSummary = useMemo(() => {
     const totalItems = tempItems.length
     const totalQuantity = tempItems.reduce((sum, item) => sum + item.quantity, 0)
-    const totalAmount = tempItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    
+    let totalAmount = 0;
+    if (tempOrderType === 'Individual') {
+      totalAmount = tempItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    } else {
+      totalAmount = (tempPerPlatePrice || 0) * (tempNumberOfPlates || 0);
+    }
+    
     return { totalItems, totalAmount, totalQuantity }
-  }, [tempItems])
+  }, [tempItems, tempOrderType, tempPerPlatePrice, tempNumberOfPlates])
 
   const filteredMenuItems = useMemo(() => {
     const selectedItemIds = new Set(tempItems.map(item => item.menuItemId));
@@ -98,13 +111,26 @@ export default function OrdersPage() {
 
   const handleOpenForm = (order: Order | null = null) => {
     setEditingOrder(order)
-    setTempItems(order?.items || [])
+    if (order) {
+      setTempItems(order.items || [])
+      setTempOrderType(order.orderType || 'Individual');
+      setTempPerPlatePrice(order.perPlatePrice || 0);
+      setTempNumberOfPlates(order.numberOfPlates || 1);
+    } else {
+      setTempItems([])
+      setTempOrderType('Individual');
+      setTempPerPlatePrice(0);
+      setTempNumberOfPlates(1);
+    }
     setFormOpen(true)
   }
 
   const handleCloseForm = () => {
     setEditingOrder(null)
     setTempItems([])
+    setTempOrderType('Individual');
+    setTempPerPlatePrice(0);
+    setTempNumberOfPlates(1);
     setFormOpen(false)
   }
 
@@ -122,7 +148,10 @@ export default function OrdersPage() {
         ...editingOrder,
         ...baseOrderData,
         status: formData.get("status") as Order["status"],
+        orderType: tempOrderType,
         items: tempItems,
+        perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
+        numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
       }
        if (updatedOrder.status === "Cancelled") {
           handleCloseForm()
@@ -150,6 +179,7 @@ export default function OrdersPage() {
          ...baseOrderData,
          status: "Pending",
          items: [],
+         orderType: 'Individual',
        }
        setOrders([newOrder, ...orders])
        toast({ title: "Success", description: "New order has been added." })
@@ -352,6 +382,19 @@ export default function OrdersPage() {
                                 </SelectContent>
                                 </Select>
                             </div>
+                             <div className="grid gap-2">
+                                <Label>Order Type</Label>
+                                <RadioGroup defaultValue={tempOrderType} onValueChange={(v: Order['orderType']) => setTempOrderType(v)} className="flex gap-4">
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="Individual" id="individual" />
+                                    <Label htmlFor="individual">Individual Items</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="Plate" id="plate" />
+                                    <Label htmlFor="plate">Plate Based</Label>
+                                  </div>
+                                </RadioGroup>
+                             </div>
                            </div>
                         </TabsContent>
                         <TabsContent value="add_items" className="flex-grow flex flex-col overflow-hidden pt-4">
@@ -390,23 +433,31 @@ export default function OrdersPage() {
                                     <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
                                         <div className="flex-1">
                                             <p className="font-medium">{item.name}</p>
-                                            <p className="text-sm text-muted-foreground">@ ₹{item.price.toFixed(2)}</p>
+                                            {tempOrderType === 'Individual' && <p className="text-sm text-muted-foreground">@ ₹{item.price.toFixed(2)}</p>}
                                         </div>
+                                        {tempOrderType === 'Individual' ? (
                                         <div className="flex items-center gap-2">
-                                        <Input 
-                                            type="number" 
-                                            className="w-20 h-8 text-center"
-                                            value={item.quantity}
-                                            onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
-                                            min="0"
-                                        />
-                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                            <Input 
+                                                type="number" 
+                                                className="w-20 h-8 text-center"
+                                                value={item.quantity}
+                                                onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
+                                                min="0"
+                                            />
+                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
-                                        <div className="w-24 text-right font-semibold">
-                                         ₹{(item.price * item.quantity).toFixed(2)}
-                                        </div>
+                                         ) : (
+                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        {tempOrderType === 'Individual' && (
+                                            <div className="w-24 text-right font-semibold">
+                                            ₹{(item.price * item.quantity).toFixed(2)}
+                                            </div>
+                                        )}
                                     </div>
                                     )) : (
                                     <div className="text-sm text-muted-foreground text-center py-16 h-full flex flex-col justify-center items-center">
@@ -420,14 +471,32 @@ export default function OrdersPage() {
                             </div>
                             {tempItems.length > 0 && (
                             <div className="mt-4 p-4 bg-muted rounded-lg space-y-2 border-t pr-4 shrink-0">
+                                {tempOrderType === 'Plate' && (
+                                  <div className="flex items-center gap-4">
+                                      <div className="grid gap-1.5 flex-1">
+                                          <Label htmlFor="perPlatePrice">Price Per Plate (₹)</Label>
+                                          <Input id="perPlatePrice" type="number" value={tempPerPlatePrice} onChange={(e) => setTempPerPlatePrice(Number(e.target.value))} />
+                                      </div>
+                                      <div className="grid gap-1.5 flex-1">
+                                          <Label htmlFor="numberOfPlates">Number of Plates</Label>
+                                          <Input id="numberOfPlates" type="number" value={tempNumberOfPlates} onChange={(e) => setTempNumberOfPlates(Number(e.target.value))} />
+                                      </div>
+                                  </div>
+                                )}
                                 <div className="flex justify-between text-lg font-bold">
                                     <span>Final Amount</span>
                                     <span>₹{orderSummary.totalAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Total Items</span>
+                                    <span>{orderSummary.totalItems}</span>
+                                </div>
+                                {tempOrderType === 'Individual' && (
+                                <div className="flex justify-between text-sm text-muted-foreground">
                                     <span>Total Quantity</span>
                                     <span>{orderSummary.totalQuantity}</span>
                                 </div>
+                                )}
                             </div>
                             )}
                         </TabsContent>
@@ -493,5 +562,3 @@ export default function OrdersPage() {
     </>
   )
 }
-
-    
