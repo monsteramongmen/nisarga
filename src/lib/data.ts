@@ -1,10 +1,18 @@
+export type OrderItem = {
+  menuItemId: string
+  name: string
+  quantity: number
+  price: number
+}
+
 export type Order = {
   id: string
   customerName: string
   eventName: string
   eventDate: string
-  status: "Pending" | "In Progress" | "Completed" | "Cancelled"
+  status: "Pending" | "Confirmed" | "In Progress" | "Completed" | "Cancelled"
   cancellationReason?: string
+  items?: OrderItem[]
 }
 
 export type MenuItem = {
@@ -24,12 +32,12 @@ export type Customer = {
 }
 
 export const orders: Order[] = [
-  { id: "ORD001", customerName: "Alice Johnson", eventName: "Birthday Party", eventDate: "2024-08-15", status: "Completed" },
-  { id: "ORD002", customerName: "Bob Williams", eventName: "Corporate Lunch", eventDate: "2024-08-20", status: "In Progress" },
+  { id: "ORD001", customerName: "Alice Johnson", eventName: "Birthday Party", eventDate: "2024-08-15", status: "Completed", items: [{ menuItemId: "MENU01", name: "Caprese Skewers", quantity: 2, price: 625.50 }, { menuItemId: "MENU02", name: "Chicken Satay", quantity: 3, price: 830.00 }] },
+  { id: "ORD002", customerName: "Bob Williams", eventName: "Corporate Lunch", eventDate: "2024-08-20", status: "In Progress", items: [{ menuItemId: "MENU03", name: "Mushroom Vol-au-vents", quantity: 5, price: 665.00 }] },
   { id: "ORD003", customerName: "Charlie Brown", eventName: "Wedding Anniversary", eventDate: "2024-09-01", status: "Pending" },
-  { id: "ORD004", customerName: "Diana Miller", eventName: "Graduation Celebration", eventDate: "2024-08-10", status: "Completed" },
+  { id: "ORD004", customerName: "Diana Miller", eventName: "Graduation Celebration", eventDate: "2024-08-10", status: "Completed", items: [{ menuItemId: "MENU05", name: "Stuffed Bell Peppers", quantity: 10, price: 1000.00 }] },
   { id: "ORD005", customerName: "Ethan Davis", eventName: "Team Outing", eventDate: "2024-09-05", status: "Pending" },
-  { id: "ORD006", customerName: "Fiona Garcia", eventName: "Holiday Feast", eventDate: "2024-08-25", status: "In Progress" },
+  { id: "ORD006", customerName: "Fiona Garcia", eventName: "Holiday Feast", eventDate: "2024-08-25", status: "Confirmed", items: [{ menuItemId: "MENU06", name: "Lamb Koftas", quantity: 4, price: 1165.00 }] },
 ]
 
 export const menuItems: MenuItem[] = [

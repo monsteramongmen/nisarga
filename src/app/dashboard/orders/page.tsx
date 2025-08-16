@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical } from "lucide-react"
+import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical, Pencil, Trash2, ShoppingCart } from "lucide-react"
 
-import type { Order, Customer } from "@/lib/data"
-import { orders as initialOrders, customers as initialCustomers } from "@/lib/data"
+import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
+import { orders as initialOrders, customers as initialCustomers, menuItems } from "@/lib/data"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,18 +41,21 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
+import { ScrollArea } from "@/components/ui/scroll-area"
+
+const statusHierarchy: Order["status"][] = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled"]
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<"All" | Order["status"]>("All")
-  const [isNewOrderDialogOpen, setNewOrderDialogOpen] = useState(false)
+  const [isFormOpen, setFormOpen] = useState(false)
   const [isCancelDialogOpen, setCancelDialogOpen] = useState(false)
-  const [isStatusDialogOpen, setStatusDialogOpen] = useState(false)
   const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
+  const [tempItems, setTempItems] = useState<OrderItem[]>([])
+
   const { toast } = useToast()
 
   const filteredOrders = useMemo(() => {
@@ -70,23 +73,64 @@ export default function OrdersPage() {
       )
     }
     
-    return items
+    return items.sort((a, b) => statusHierarchy.indexOf(a.status) - statusHierarchy.indexOf(b.status));
   }, [orders, searchTerm, statusFilter])
 
-  const handleStatusChange = (order: Order, newStatus: Order["status"]) => {
-    if (newStatus === "Cancelled") {
-      setCancellingOrder(order)
-      setCancelDialogOpen(true)
-    } else {
-      setOrders(
-        orders.map((o) =>
-          o.id === order.id ? { ...o, status: newStatus, cancellationReason: undefined } : o
-        )
-      )
-      toast({ title: "Status Updated", description: `Order #${order.id} is now ${newStatus}.` })
-    }
+  const handleOpenForm = (order: Order | null = null) => {
+    setEditingOrder(order)
+    setTempItems(order?.items || [])
+    setFormOpen(true)
+  }
+
+  const handleCloseForm = () => {
     setEditingOrder(null)
-    setStatusDialogOpen(false)
+    setTempItems([])
+    setFormOpen(false)
+  }
+
+  const handleSaveOrder = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    const baseOrderData = {
+      eventName: formData.get("eventName") as string,
+      eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+    }
+
+    if (editingOrder) {
+      const updatedOrder: Order = {
+        ...editingOrder,
+        ...baseOrderData,
+        status: formData.get("status") as Order["status"],
+        items: tempItems,
+      }
+       if (updatedOrder.status === "Cancelled") {
+          handleCloseForm()
+          setCancellingOrder(updatedOrder)
+          setCancelDialogOpen(true)
+          return
+       }
+       
+      setOrders(orders.map(o => o.id === editingOrder.id ? updatedOrder : o))
+      toast({ title: "Success", description: "Order updated successfully." })
+    } else {
+       const customerId = formData.get("customer") as string
+       if (!customerId) {
+         toast({ variant: "destructive", title: "Error", description: "Please select a customer." })
+         return
+       }
+       const customer = initialCustomers.find(c => c.id === customerId)
+       const newOrder: Order = {
+         id: `ORD${Date.now()}`,
+         customerName: customer!.name,
+         ...baseOrderData,
+         status: "Pending",
+       }
+       setOrders([newOrder, ...orders])
+       toast({ title: "Success", description: "New order has been added." })
+    }
+
+    handleCloseForm()
   }
 
   const handleConfirmCancel = (e: React.FormEvent<HTMLFormElement>) => {
@@ -108,52 +152,36 @@ export default function OrdersPage() {
     setCancellingOrder(null)
   }
 
-  const handleAddNewOrder = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const customerId = formData.get("customer") as string
-    const eventDate = formData.get("eventDate") as string
-    const eventName = formData.get("eventName") as string
-    
-    if (!customerId || !eventDate || !eventName) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please fill out all required fields.",
-      })
-      return
+  const handleItemAdd = (menuItem: MenuItem) => {
+    const existingItem = tempItems.find(i => i.menuItemId === menuItem.id)
+    if (existingItem) {
+      handleItemQuantityChange(menuItem.id, existingItem.quantity + 1)
+    } else {
+      const newItem: OrderItem = {
+        menuItemId: menuItem.id,
+        name: menuItem.name,
+        price: menuItem.price,
+        quantity: 1,
+      }
+      setTempItems([...tempItems, newItem])
     }
-
-    const customer = initialCustomers.find(c => c.id === customerId)
-    if (!customer) return
-
-    const newOrder: Order = {
-      id: `ORD${Date.now()}`,
-      customerName: customer.name,
-      eventName: eventName,
-      eventDate: format(new Date(eventDate), "yyyy-MM-dd"),
-      status: "Pending",
-    }
-    setOrders([newOrder, ...orders])
-    toast({ title: "Success", description: "New order has been added." })
-    setNewOrderDialogOpen(false)
   }
-  
-  const openStatusDialog = (order: Order) => {
-    setEditingOrder(order)
-    setStatusDialogOpen(true)
+
+  const handleItemQuantityChange = (menuItemId: string, quantity: number) => {
+    if (quantity <= 0) {
+      setTempItems(tempItems.filter(i => i.menuItemId !== menuItemId))
+    } else {
+      setTempItems(tempItems.map(i => i.menuItemId === menuItemId ? { ...i, quantity } : i))
+    }
   }
 
   const getStatusClass = (status: Order["status"]) => {
     switch (status) {
-      case "Pending":
-        return "bg-yellow-500/20 text-yellow-700 border-yellow-500/30"
-      case "In Progress":
-        return "bg-blue-500/20 text-blue-700 border-blue-500/30"
-      case "Completed":
-        return "bg-green-500/20 text-green-700 border-green-500/30"
-      case "Cancelled":
-        return "bg-red-500/20 text-red-700 border-red-500/30"
+      case "Pending": return "bg-yellow-500/20 text-yellow-700 border-yellow-500/30"
+      case "Confirmed": return "bg-cyan-500/20 text-cyan-700 border-cyan-500/30"
+      case "In Progress": return "bg-blue-500/20 text-blue-700 border-blue-500/30"
+      case "Completed": return "bg-green-500/20 text-green-700 border-green-500/30"
+      case "Cancelled": return "bg-red-500/20 text-red-700 border-red-500/30"
     }
   }
 
@@ -178,12 +206,13 @@ export default function OrdersPage() {
                 <SelectContent>
                     <SelectItem value="All">All Statuses</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Confirmed">Confirmed</SelectItem>
                     <SelectItem value="In Progress">In Progress</SelectItem>
                     <SelectItem value="Completed">Completed</SelectItem>
                     <SelectItem value="Cancelled">Cancelled</SelectItem>
                 </SelectContent>
             </Select>
-            <Button size="sm" onClick={() => setNewOrderDialogOpen(true)} className="whitespace-nowrap">
+            <Button size="sm" onClick={() => handleOpenForm()} className="whitespace-nowrap">
               <PlusCircle className="h-4 w-4 mr-2" />
               Add New Order
             </Button>
@@ -228,8 +257,8 @@ export default function OrdersPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openStatusDialog(order)}>
-                                    Update Status
+                                <DropdownMenuItem onClick={() => handleOpenForm(order)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Update Order
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -251,40 +280,110 @@ export default function OrdersPage() {
           </Card>
         ))}
       </div>
-
-      <Dialog open={isNewOrderDialogOpen} onOpenChange={setNewOrderDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Order</DialogTitle>
-            <DialogDescription>Enter the details for the new order.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAddNewOrder}>
-            <div className="grid gap-4 py-4">
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="eventName" className="text-right">Event Name</Label>
-                <Input id="eventName" name="eventName" className="col-span-3" required />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customer" className="text-right">Customer</Label>
-                 <Select name="customer">
-                    <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select a customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {initialCustomers.map(customer => (
-                            <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+      
+      <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="sm:max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>{editingOrder ? `Update Order #${editingOrder.id}` : 'Add New Order'}</DialogTitle>
+              <DialogDescription>{editingOrder ? 'Update details for this order.' : 'Enter details for the new order.'}</DialogDescription>
+            </DialogHeader>
+          <form onSubmit={handleSaveOrder}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Order Details Column */}
+              <div className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="eventName">Event Name</Label>
+                  <Input id="eventName" name="eventName" defaultValue={editingOrder?.eventName} required />
+                </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="customer">Customer</Label>
+                    <Select name="customer" defaultValue={editingOrder?.customerName} disabled={!!editingOrder}>
+                       <SelectTrigger>
+                           <SelectValue placeholder="Select a customer" />
+                       </SelectTrigger>
+                       <SelectContent>
+                           {initialCustomers.map(customer => (
+                               <SelectItem key={customer.id} value={editingOrder ? customer.name : customer.id} disabled={!!editingOrder}>
+                                   {customer.name}
+                               </SelectItem>
+                           ))}
+                       </SelectContent>
+                   </Select>
+                 </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="eventDate">Event Date</Label>
+                  <Input type="date" id="eventDate" name="eventDate" defaultValue={editingOrder?.eventDate} required/>
+                </div>
+                {editingOrder && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="status">Order Status</Label>
+                    <Select name="status" defaultValue={editingOrder.status}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusHierarchy.map(status => (
+                          <SelectItem key={status} value={status}>{status}</SelectItem>
                         ))}
-                    </SelectContent>
-                </Select>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {editingOrder && (
+                  <>
+                    <h3 className="text-lg font-semibold pt-4">Selected Items</h3>
+                    <ScrollArea className="h-48">
+                      <div className="space-y-2 pr-4">
+                        {tempItems.length > 0 ? tempItems.map(item => (
+                          <div key={item.menuItemId} className="flex justify-between items-center bg-muted p-2 rounded-md">
+                            <span className="flex-1">{item.name}</span>
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                type="number" 
+                                className="w-20 h-8"
+                                value={item.quantity}
+                                onChange={(e) => handleItemQuantityChange(item.menuItemId, parseInt(e.target.value, 10))}
+                              />
+                               <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleItemQuantityChange(item.menuItemId, 0)}>
+                                  <Trash2 className="h-4 w-4" />
+                               </Button>
+                            </div>
+                          </div>
+                        )) : (
+                          <div className="text-sm text-muted-foreground text-center py-8">
+                             <ShoppingCart className="mx-auto h-8 w-8 mb-2" />
+                             No items selected.
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </>
+                )}
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="eventDate" className="text-right">Event Date</Label>
-                <Input type="date" id="eventDate" name="eventDate" className="col-span-3" required/>
-              </div>
+              
+              {/* Menu Items Column */}
+              {editingOrder && (
+                  <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Add Items to Order</h3>
+                      <ScrollArea className="h-[26.5rem]">
+                          <div className="space-y-2 pr-4">
+                            {menuItems.map(item => (
+                                <Card key={item.id} className="p-3 flex justify-between items-center">
+                                    <div>
+                                        <p className="font-semibold">{item.name}</p>
+                                        <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
+                                    </div>
+                                    <Button type="button" size="sm" onClick={() => handleItemAdd(item)}>Add</Button>
+                                </Card>
+                            ))}
+                          </div>
+                      </ScrollArea>
+                  </div>
+              )}
             </div>
-            <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setNewOrderDialogOpen(false)}>Cancel</Button>
-                <Button type="submit">Add Order</Button>
+            <DialogFooter className="mt-8">
+                <Button type="button" variant="outline" onClick={handleCloseForm}>Cancel</Button>
+                <Button type="submit">{editingOrder ? "Update Order" : "Add Order"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -312,38 +411,6 @@ export default function OrdersPage() {
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
-
-      <Dialog open={isStatusDialogOpen} onOpenChange={(isOpen) => {
-          if (!isOpen) setEditingOrder(null)
-          setStatusDialogOpen(isOpen)
-      }}>
-          <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Update Order Status</DialogTitle>
-                <DialogDescription>Select the new status for order #{editingOrder?.id}.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <Select
-                    value={editingOrder?.status}
-                    onValueChange={(value: Order["status"]) => {
-                        if (editingOrder) {
-                            handleStatusChange(editingOrder, value)
-                        }
-                    }}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Completed">Completed</SelectItem>
-                        <SelectItem value="Cancelled">Cancel</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-          </DialogContent>
       </Dialog>
     </>
   )
