@@ -1,7 +1,14 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical, Pencil, Trash2, ShoppingCart } from "lucide-react"
+import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical, Pencil, Trash2, ShoppingCart, Download, FileText } from "lucide-react"
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+
+if (pdfFonts.pdfMake) {
+  pdfMake.vfs = pdfFonts.pdfMake.vfs;
+}
+
 
 import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
 import { orders as initialOrders, customers as initialCustomers, menuItems } from "@/lib/data"
@@ -148,8 +155,9 @@ export default function OrdersPage() {
         items: tempItems,
         perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
         numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
+        lastUpdated: new Date().toISOString(),
       }
-       if (updatedOrder.status === "Cancelled") {
+       if (updatedOrder.status === "Cancelled" && updatedOrder.status !== editingOrder.status) {
           handleCloseForm()
           setCancellingOrder(updatedOrder)
           setCancelDialogOpen(true)
@@ -177,6 +185,7 @@ export default function OrdersPage() {
          status: "Pending",
          items: [],
          orderType: 'Individual',
+         lastUpdated: new Date().toISOString(),
        }
        setOrders([newOrder, ...orders])
        toast({ title: "Success", description: "New order has been added." })
@@ -195,7 +204,7 @@ export default function OrdersPage() {
     setOrders(
       orders.map((order) =>
         order.id === cancellingOrder.id
-          ? { ...order, status: "Cancelled", cancellationReason: reason }
+          ? { ...order, status: "Cancelled", cancellationReason: reason, lastUpdated: new Date().toISOString() }
           : order
       )
     )
@@ -226,6 +235,164 @@ export default function OrdersPage() {
       setTempItems(tempItems.map(i => i.menuItemId === menuItemId ? { ...i, quantity } : i))
     }
   }
+
+  const handleGenerateInvoice = (order: Order) => {
+    const customer = initialCustomers.find(c => c.name === order.customerName);
+    const items = order.items || [];
+    let finalAmount = 0;
+
+    const tableBody: any[] = [];
+    
+    if (order.orderType === 'Individual') {
+        finalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        tableBody.push(['Item', 'Quantity', 'Unit Price', 'Total']);
+        items.forEach(item => {
+            tableBody.push([
+                item.name,
+                item.quantity,
+                `₹${item.price.toFixed(2)}`,
+                `₹${(item.price * item.quantity).toFixed(2)}`,
+            ]);
+        });
+    } else { // Plate based
+        finalAmount = (order.perPlatePrice || 0) * (order.numberOfPlates || 0);
+        tableBody.push(['Included Menu Items']);
+        items.forEach(item => {
+            tableBody.push([item.name]);
+        });
+    }
+
+    const docDefinition: any = {
+        content: [
+            { text: 'Invoice', style: 'header', alignment: 'center' },
+            { text: 'Nisarga Catering Services', style: 'subheader', alignment: 'center', margin: [0, 0, 0, 20] },
+            
+            {
+                columns: [
+                    {
+                        width: '*',
+                        text: [
+                            { text: 'Invoice ID: ', bold: true }, `${order.id.replace("ORD", "INV")}\n`,
+                            { text: 'Date: ', bold: true }, `${format(new Date(), "PPP")}`,
+                        ]
+                    },
+                    {
+                        width: 'auto',
+                        text: ''
+                    }
+                ],
+                columnGap: 10,
+                margin: [0, 0, 0, 10]
+            },
+            {
+                columns: [
+                    {
+                        width: '*',
+                        text: [
+                            { text: 'Customer: ', bold: true }, `${order.customerName}\n`,
+                            ...(customer?.phone ? [{ text: 'Phone: ', bold: true }, `${customer.phone}\n`] : []),
+                            ...(customer?.email ? [{ text: 'Email: ', bold: true }, `${customer.email}`] : []),
+                        ]
+                    },
+                    {
+                        width: '*',
+                         alignment: 'right',
+                        text: [
+                            { text: 'Event: ', bold: true }, `${order.eventName}\n`,
+                            { text: 'Event Date: ', bold: true }, `${format(new Date(order.eventDate), "PPP")}`,
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: {
+                    headerRows: 1,
+                    widths: order.orderType === 'Individual' ? ['*', 'auto', 'auto', 'auto'] : ['*'],
+                    body: tableBody,
+                },
+                layout: {
+                  fillColor: function (rowIndex: number) {
+                    return (rowIndex === 0) ? '#337ab7' : null;
+                  },
+                  hLineWidth: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.body.length) ? 2 : 1;
+                  },
+                  vLineWidth: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.widths.length) ? 2 : 1;
+                  },
+                  hLineColor: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.body.length) ? 'black' : 'gray';
+                  },
+                  vLineColor: function (i: number, node: any) {
+                    return (i === 0 || i === node.table.widths.length) ? 'black' : 'gray';
+                  },
+                  paddingLeft: function(i: number, node: any) { return 5; },
+                  paddingRight: function(i: number, node: any) { return 5; },
+                  paddingTop: function(i: number, node: any) { return 5; },
+                  paddingBottom: function(i: number, node: any) { return 5; },
+                }
+            },
+            ...(order.orderType === 'Plate' ? [
+              { text: `Price Per Plate: ₹${(order.perPlatePrice || 0).toFixed(2)}`, margin: [0, 10, 0, 5]},
+              { text: `Number of Plates: ${order.numberOfPlates || 0}`, margin: [0, 0, 0, 10]}
+            ] : []),
+            {
+              text: `Total Amount: ₹${finalAmount.toFixed(2)}`,
+              style: 'total',
+              alignment: 'right',
+              margin: [0, 20, 0, 0]
+            },
+            {
+                style: 'tableExample',
+                table: {
+                    widths: ['*', 'auto'],
+                    body: [
+                        [
+                            {text: 'Order Status', bold: true},
+                            {text: order.status, alignment: 'right'}
+                        ],
+                        [
+                            {text: 'Last Updated', bold: true},
+                            {text: format(new Date(order.lastUpdated), "PPP p"), alignment: 'right'}
+                        ],
+                         ...(order.status === 'Cancelled' ? [[
+                            {text: 'Cancellation Reason', bold: true},
+                            {text: order.cancellationReason || 'N/A', alignment: 'right'}
+                        ]] : [])
+                    ]
+                },
+                layout: 'noBorders',
+                margin: [0, 20, 0, 0]
+            },
+            {
+              text: 'Thank you for your business!',
+              style: 'footer',
+              alignment: 'center',
+              italics: true,
+              margin: [0, 40, 0, 0]
+            }
+        ],
+        styles: {
+            header: {
+                fontSize: 22,
+                bold: true
+            },
+            subheader: {
+                fontSize: 12
+            },
+            total: {
+                fontSize: 14,
+                bold: true,
+            },
+            footer: {
+                fontSize: 10
+            }
+        }
+    };
+
+    pdfMake.createPdf(docDefinition).download(`Invoice-${order.id}.pdf`);
+  };
 
   const getStatusClass = (status: Order["status"]) => {
     switch (status) {
@@ -312,6 +479,11 @@ export default function OrdersPage() {
                                 <DropdownMenuItem onClick={() => handleOpenForm(order)}>
                                     <Pencil className="mr-2 h-4 w-4" /> Update Order
                                 </DropdownMenuItem>
+                                {order.status !== 'Pending' && (
+                                   <DropdownMenuItem onClick={() => handleGenerateInvoice(order)}>
+                                      <FileText className="mr-2 h-4 w-4" /> Generate Invoice
+                                   </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                    </div>
@@ -559,3 +731,5 @@ export default function OrdersPage() {
     </>
   )
 }
+
+    

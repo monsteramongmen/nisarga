@@ -1,9 +1,11 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download, Trash2 } from "lucide-react"
+import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download, Trash2, PackageCheck } from "lucide-react"
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import { useRouter } from 'next/navigation'
+
 
 if (pdfFonts.pdfMake) {
   pdfMake.vfs = pdfFonts.pdfMake.vfs;
@@ -53,23 +55,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 
-type Quotation = Omit<Order, 'status'> & {
-  status: 'Draft' | 'Sent' | 'Accepted' | 'Declined';
+type Quotation = Omit<Order, 'status' | 'id'> & {
+  id: string;
+  status: 'Draft' | 'Sent' | 'Accepted' | 'Declined' | 'Ordered';
 };
 
-const statusHierarchy: Quotation["status"][] = ["Draft", "Sent", "Accepted", "Declined"]
+const statusHierarchy: Quotation["status"][] = ["Draft", "Sent", "Accepted", "Declined", "Ordered"]
 
 // Mock data for quotations, can be replaced with API calls
 const initialQuotations: Quotation[] = [
-    { id: "QUO001", customerName: "Ethan Davis", eventName: "Summer BBQ", eventDate: "2024-09-10", status: "Draft", items: [
+    { id: "QUO001", customerName: "Ethan Davis", eventName: "Summer BBQ", eventDate: "2024-09-10", status: "Accepted", items: [
         { menuItemId: 'MENU01', name: 'Caprese Skewers', price: 625.50, quantity: 10 },
         { menuItemId: 'MENU02', name: 'Chicken Satay', price: 830.00, quantity: 15 },
-    ], orderType: 'Individual'},
-    { id: "QUO002", customerName: "Fiona Garcia", eventName: "Product Launch", eventDate: "2024-09-20", status: "Sent", items: [], orderType: 'Individual'},
+    ], orderType: 'Individual', lastUpdated: new Date().toISOString() },
+    { id: "QUO002", customerName: "Fiona Garcia", eventName: "Product Launch", eventDate: "2024-09-20", status: "Sent", items: [], orderType: 'Individual', lastUpdated: new Date().toISOString()},
 ];
 
 export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<Quotation[]>(initialQuotations)
+  const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<"All" | Quotation["status"]>("All")
   const [isFormOpen, setFormOpen] = useState(false)
@@ -85,6 +89,8 @@ export default function QuotationsPage() {
 
 
   const { toast } = useToast()
+  const router = useRouter()
+
 
   const filteredQuotations = useMemo(() => {
     let items = quotations
@@ -166,6 +172,7 @@ export default function QuotationsPage() {
         items: tempItems,
         perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
         numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
+        lastUpdated: new Date().toISOString()
       }
        
       setQuotations(quotations.map(o => o.id === editingQuotation.id ? updatedQuotation : o))
@@ -189,6 +196,7 @@ export default function QuotationsPage() {
          status: "Draft",
          items: [],
          orderType: 'Individual',
+         lastUpdated: new Date().toISOString()
        }
        setQuotations([newQuotation, ...quotations])
        toast({ title: "Success", description: "New quotation has been added." })
@@ -196,6 +204,37 @@ export default function QuotationsPage() {
 
     handleCloseForm()
   }
+
+  const handlePlaceOrder = (quotation: Quotation) => {
+    const newOrder: Order = {
+      id: `ORD${Date.now()}`,
+      customerName: quotation.customerName,
+      eventName: quotation.eventName,
+      eventDate: quotation.eventDate,
+      status: 'Confirmed',
+      items: quotation.items,
+      orderType: quotation.orderType,
+      perPlatePrice: quotation.perPlatePrice,
+      numberOfPlates: quotation.numberOfPlates,
+      lastUpdated: new Date().toISOString(),
+    };
+    
+    // This assumes `orders` state is managed globally or passed down.
+    // For a real app, you would likely call an API here.
+    const updatedOrders = [...initialOrders, newOrder];
+    // For now, let's just log it. You'd update a shared state.
+    console.log("New Order Created:", newOrder);
+    
+    setQuotations(
+      quotations.map(q => q.id === quotation.id ? { ...q, status: 'Ordered' } : q)
+    );
+
+    toast({
+      title: "Order Placed!",
+      description: `Order #${newOrder.id} has been created.`,
+    });
+    router.push('/dashboard/orders');
+  };
 
   const handleItemAdd = (menuItem: MenuItem) => {
     const existingItem = tempItems.find(i => i.menuItemId === menuItem.id)
@@ -362,6 +401,7 @@ export default function QuotationsPage() {
       case "Sent": return "bg-blue-500/20 text-blue-700 border-blue-500/30"
       case "Accepted": return "bg-green-500/20 text-green-700 border-green-500/30"
       case "Declined": return "bg-red-500/20 text-red-700 border-red-500/30"
+      case "Ordered": return "bg-purple-500/20 text-purple-700 border-purple-500/30"
     }
   }
 
@@ -385,10 +425,9 @@ export default function QuotationsPage() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="All">All Statuses</SelectItem>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Sent">Sent</SelectItem>
-                    <SelectItem value="Accepted">Accepted</SelectItem>
-                    <SelectItem value="Declined">Declined</SelectItem>
+                    {statusHierarchy.map(status => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
                 </SelectContent>
             </Select>
             <Button size="sm" onClick={() => handleOpenForm()} className="whitespace-nowrap">
@@ -423,6 +462,11 @@ export default function QuotationsPage() {
                                 <DropdownMenuItem onClick={() => handleDownloadPdf(quotation)}>
                                     <Download className="mr-2 h-4 w-4" /> Download PDF
                                 </DropdownMenuItem>
+                                {quotation.status === 'Accepted' && (
+                                  <DropdownMenuItem onClick={() => handlePlaceOrder(quotation)}>
+                                    <PackageCheck className="mr-2 h-4 w-4" /> Place Order
+                                  </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                    </div>
@@ -485,7 +529,7 @@ export default function QuotationsPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {statusHierarchy.map(status => (
-                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                    <SelectItem key={status} value={status} disabled={status === 'Ordered'}>{status}</SelectItem>
                                     ))}
                                 </SelectContent>
                                 </Select>
@@ -646,3 +690,5 @@ export default function QuotationsPage() {
     </>
   )
 }
+
+    

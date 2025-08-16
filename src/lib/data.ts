@@ -16,6 +16,7 @@ export type Order = {
   orderType: "Individual" | "Plate"
   perPlatePrice?: number
   numberOfPlates?: number
+  lastUpdated: string
 }
 
 export type MenuItem = {
@@ -35,12 +36,12 @@ export type Customer = {
 }
 
 export const orders: Order[] = [
-  { id: "ORD001", customerName: "Alice Johnson", eventName: "Birthday Party", eventDate: "2024-08-15", status: "Completed", items: [{ menuItemId: "MENU01", name: "Caprese Skewers", quantity: 2, price: 625.50 }, { menuItemId: "MENU02", name: "Chicken Satay", quantity: 3, price: 830.00 }], orderType: "Individual" },
-  { id: "ORD002", customerName: "Bob Williams", eventName: "Corporate Lunch", eventDate: "2024-08-20", status: "In Progress", items: [{ menuItemId: "MENU03", name: "Mushroom Vol-au-vents", quantity: 5, price: 665.00 }], orderType: "Individual" },
-  { id: "ORD003", customerName: "Charlie Brown", eventName: "Wedding Anniversary", eventDate: "2024-09-01", status: "Pending", orderType: "Individual" },
-  { id: "ORD004", customerName: "Diana Miller", eventName: "Graduation Celebration", eventDate: "2024-08-10", status: "Completed", items: [{ menuItemId: "MENU05", name: "Stuffed Bell Peppers", quantity: 10, price: 1000.00 }], orderType: "Individual" },
-  { id: "ORD005", customerName: "Ethan Davis", eventName: "Team Outing", eventDate: "2024-09-05", status: "Pending", orderType: "Individual" },
-  { id: "ORD006", customerName: "Fiona Garcia", eventName: "Holiday Feast", eventDate: "2024-08-25", status: "Confirmed", items: [{ menuItemId: "MENU06", name: "Lamb Koftas", quantity: 4, price: 1165.00 }], orderType: "Individual" },
+  { id: "ORD001", customerName: "Alice Johnson", eventName: "Birthday Party", eventDate: "2024-08-15", status: "Completed", items: [{ menuItemId: "MENU01", name: "Caprese Skewers", quantity: 2, price: 625.50 }, { menuItemId: "MENU02", name: "Chicken Satay", quantity: 3, price: 830.00 }], orderType: "Individual", lastUpdated: "2024-08-15T10:00:00Z" },
+  { id: "ORD002", customerName: "Bob Williams", eventName: "Corporate Lunch", eventDate: "2024-08-20", status: "In Progress", items: [{ menuItemId: "MENU03", name: "Mushroom Vol-au-vents", quantity: 5, price: 665.00 }], orderType: "Individual", lastUpdated: "2024-08-20T11:00:00Z" },
+  { id: "ORD003", customerName: "Charlie Brown", eventName: "Wedding Anniversary", eventDate: "2024-09-01", status: "Pending", orderType: "Individual", lastUpdated: "2024-08-22T12:00:00Z" },
+  { id: "ORD004", customerName: "Diana Miller", eventName: "Graduation Celebration", eventDate: "2024-08-10", status: "Completed", items: [{ menuItemId: "MENU05", name: "Stuffed Bell Peppers", quantity: 10, price: 1000.00 }], orderType: "Individual", lastUpdated: "2024-08-10T13:00:00Z" },
+  { id: "ORD005", customerName: "Ethan Davis", eventName: "Team Outing", eventDate: "2024-09-05", status: "Pending", orderType: "Individual", lastUpdated: "2024-08-25T14:00:00Z" },
+  { id: "ORD006", customerName: "Fiona Garcia", eventName: "Holiday Feast", eventDate: "2024-08-25", status: "Confirmed", items: [{ menuItemId: "MENU06", name: "Lamb Koftas", quantity: 4, price: 1165.00 }], orderType: "Individual", lastUpdated: "2024-08-25T15:00:00Z" },
 ]
 
 export const menuItems: MenuItem[] = [
@@ -70,3 +71,5 @@ export const sevenDayRevenue = [
   { date: "2 days ago", revenue: 160000 },
   { date: "Yesterday", revenue: 175000 },
 ];
+
+    
