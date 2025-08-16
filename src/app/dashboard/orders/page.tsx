@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, AlertTriangle } from "lucide-react"
+import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical } from "lucide-react"
 
 import type { Order, Customer } from "@/lib/data"
 import { orders as initialOrders, customers as initialCustomers } from "@/lib/data"
@@ -23,6 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -44,6 +50,8 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<"All" | Order["status"]>("All")
   const [isNewOrderDialogOpen, setNewOrderDialogOpen] = useState(false)
   const [isCancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [isStatusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
   const { toast } = useToast()
 
@@ -75,7 +83,10 @@ export default function OrdersPage() {
           o.id === order.id ? { ...o, status: newStatus, cancellationReason: undefined } : o
         )
       )
+      toast({ title: "Status Updated", description: `Order #${order.id} is now ${newStatus}.` })
     }
+    setEditingOrder(null)
+    setStatusDialogOpen(false)
   }
 
   const handleConfirmCancel = (e: React.FormEvent<HTMLFormElement>) => {
@@ -127,6 +138,11 @@ export default function OrdersPage() {
     toast({ title: "Success", description: "New order has been added." })
     setNewOrderDialogOpen(false)
   }
+  
+  const openStatusDialog = (order: Order) => {
+    setEditingOrder(order)
+    setStatusDialogOpen(true)
+  }
 
   const getStatusClass = (status: Order["status"]) => {
     switch (status) {
@@ -176,7 +192,7 @@ export default function OrdersPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredOrders.map((order) => (
-          <Card key={order.id}>
+          <Card key={order.id} className="flex flex-col">
             <CardHeader>
               <div className="flex justify-between items-start">
                   <div>
@@ -185,49 +201,49 @@ export default function OrdersPage() {
                           <User className="h-4 w-4" /> {order.customerName}
                       </CardDescription>
                   </div>
-                  {order.cancellationReason && (
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-red-500 h-8 w-8">
-                                <AlertTriangle className="h-5 w-5" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Cancellation Reason</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        {order.cancellationReason}
-                                    </p>
+                   <div className="flex items-center gap-2">
+                        {order.cancellationReason && (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-red-500 h-8 w-8">
+                                    <AlertTriangle className="h-5 w-5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80">
+                                <div className="grid gap-4">
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium leading-none">Cancellation Reason</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                            {order.cancellationReason}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                  )}
+                            </PopoverContent>
+                        </Popover>
+                        )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openStatusDialog(order)}>
+                                    Update Status
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                   </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                <p className="text-sm text-muted-foreground font-semibold pb-2">Order #{order.id}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
                 <span>Event on {format(new Date(order.eventDate), "PPP")}</span>
               </div>
             </CardContent>
-            <CardFooter className="justify-between">
-              <Select
-                value={order.status}
-                onValueChange={(value: Order["status"]) => handleStatusChange(order, value)}
-              >
-                <SelectTrigger className="w-fit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancel</SelectItem>
-                </SelectContent>
-              </Select>
+            <CardFooter className="justify-end">
                <Badge className={`${getStatusClass(order.status)}`} variant="outline">
                   {order.status}
                 </Badge>
@@ -274,7 +290,10 @@ export default function OrdersPage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isCancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+      <Dialog open={isCancelDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) setCancellingOrder(null)
+          setCancelDialogOpen(isOpen)
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel Order</DialogTitle>
@@ -288,19 +307,43 @@ export default function OrdersPage() {
                 <Textarea id="reason" name="reason" placeholder="e.g., Customer request, scheduling conflict..." required />
             </div>
             <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => {
-                  setCancelDialogOpen(false)
-                  setCancellingOrder(null)
-                  // Revert status if cancelled
-                   if (cancellingOrder) {
-                    const originalOrder = initialOrders.find(o => o.id === cancellingOrder.id)
-                    if (originalOrder) handleStatusChange(cancellingOrder, originalOrder.status)
-                   }
-                }}>Back</Button>
+                <Button type="button" variant="outline" onClick={() => setCancelDialogOpen(false)}>Back</Button>
                 <Button type="submit" variant="destructive">Confirm Cancellation</Button>
             </DialogFooter>
           </form>
         </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStatusDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) setEditingOrder(null)
+          setStatusDialogOpen(isOpen)
+      }}>
+          <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Update Order Status</DialogTitle>
+                <DialogDescription>Select the new status for order #{editingOrder?.id}.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <Select
+                    value={editingOrder?.status}
+                    onValueChange={(value: Order["status"]) => {
+                        if (editingOrder) {
+                            handleStatusChange(editingOrder, value)
+                        }
+                    }}
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancel</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+          </DialogContent>
       </Dialog>
     </>
   )
