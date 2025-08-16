@@ -59,13 +59,16 @@ export function DashboardNav() {
         const Icon = item.icon
         return (
           <SidebarMenuItem key={item.label}>
-            <Link href={item.href} legacyBehavior passHref>
+            <Link href={item.href} passHref>
               <SidebarMenuButton
+                asChild
                 isActive={pathname === item.href}
                 tooltip={item.label}
               >
-                <Icon />
-                <span>{item.label}</span>
+                <a>
+                  <Icon />
+                  <span>{item.label}</span>
+                </a>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
