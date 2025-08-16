@@ -50,7 +50,6 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
            <div className="flex items-center gap-2">
-            <SidebarTrigger className="md:hidden" />
             <h1 className="text-2xl font-bold text-sidebar-primary group-data-[collapsible=icon]:hidden">
               Nisarga
             </h1>
@@ -71,8 +70,12 @@ export default function DashboardLayout({
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 md:hidden">
+          <SidebarTrigger className="md:hidden" />
+          <h1 className="text-lg font-bold">{pageTitle}</h1>
+        </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-           <div className="flex items-center mb-6">
+           <div className="hidden items-center mb-6 md:flex">
              <h1 className="text-2xl font-bold">{pageTitle}</h1>
            </div>
           {children}
