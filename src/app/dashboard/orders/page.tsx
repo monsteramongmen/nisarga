@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical, Pencil, FileText, View, ShoppingCart, Trash2, Download } from "lucide-react"
+import React, { useState, useMemo, useEffect } from "react"
+import { Calendar, User, Search, PlusCircle, AlertTriangle, MoreVertical, Pencil, FileText, View, ShoppingCart, Trash2, Download, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import { Timestamp } from "firebase/firestore";
+
 
 if (pdfFonts.pdfMake) {
   pdfMake.vfs = pdfFonts.pdfMake.vfs;
@@ -12,7 +14,6 @@ if (pdfFonts.pdfMake) {
 
 
 import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
-import { orders as initialOrders, customers as initialCustomers, menuItems } from "@/lib/data"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,12 +54,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { getOrders, addOrder, updateOrder } from "@/services/orderService";
+import { getCustomers } from "@/services/customerService";
+import { getMenuItems } from "@/services/menuService";
 
 
 const statusHierarchy: Order["status"][] = ["Pending", "Confirmed", "In Progress", "Completed", "Cancelled"]
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(initialOrders)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<"All" | Order["status"]>("All")
   const [isFormOpen, setFormOpen] = useState(false)
@@ -74,6 +81,30 @@ export default function OrdersPage() {
   
   const { toast } = useToast()
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [ordersData, customersData, menuItemsData] = await Promise.all([
+          getOrders(),
+          getCustomers(),
+          getMenuItems(),
+        ]);
+        setOrders(ordersData);
+        setCustomers(customersData);
+        setMenuItems(menuItemsData);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch initial data.",
+        })
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [toast]);
 
   const filteredOrders = useMemo(() => {
     let items = orders
@@ -134,79 +165,95 @@ export default function OrdersPage() {
     setEditingOrder(null)
     setTempItems([]);
   }
+  
+  const formatDateForInput = (date: string | Timestamp) => {
+    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    return format(d, 'yyyy-MM-dd');
+  }
 
-  const handleSaveOrder = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    if (editingOrder) {
-      const updatedOrder: Order = {
-          ...editingOrder,
-          eventName: formData.get("eventName") as string,
-          eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
-          status: formData.get("status") as Order["status"],
-          orderType: tempOrderType,
-          items: tempItems,
-          perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
-          numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
-          lastUpdated: new Date().toISOString(),
-      }
-      if (updatedOrder.status === "Cancelled" && updatedOrder.status !== editingOrder.status) {
-          setCancelDialogOpen(true)
-          handleCloseForm()
+    try {
+      if (editingOrder) {
+        const updatedOrderData: Partial<Order> = {
+            eventName: formData.get("eventName") as string,
+            eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+            status: formData.get("status") as Order["status"],
+            orderType: tempOrderType,
+            items: tempItems,
+            perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
+            numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
+            lastUpdated: new Date().toISOString(),
+        }
+
+        if (updatedOrderData.status === "Cancelled" && updatedOrderData.status !== editingOrder.status) {
+            setCancelDialogOpen(true)
+            return
+        }
+        
+        await updateOrder(editingOrder.id, updatedOrderData)
+        const updatedOrder = { ...editingOrder, ...updatedOrderData } as Order;
+        setOrders(orders.map(o => o.id === editingOrder.id ? updatedOrder : o))
+        toast({ title: "Success", description: "Order updated successfully." })
+
+      } else { // New Order
+         const customerId = formData.get("customer") as string
+         if (!customerId) {
+           toast({ variant: "destructive", title: "Error", description: "Please select a customer." })
+           return
+         }
+         const customer = customers.find(c => c.id === customerId)
+         if (!customer) {
+          toast({ variant: "destructive", title: "Error", description: "Customer not found." })
           return
+         }
+         const newOrderData: Omit<Order, "id"> = {
+           customerName: customer!.name,
+           eventName: formData.get("eventName") as string,
+           eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+           status: "Pending",
+           items: [],
+           orderType: 'Individual',
+           lastUpdated: new Date().toISOString(),
+           createdAt: Timestamp.now(),
+         }
+         const newOrder = await addOrder(newOrderData)
+         setOrders([newOrder, ...orders])
+         toast({ title: "Success", description: "New order has been added." })
       }
-      
-      const newOrders = orders.map(o => o.id === editingOrder.id ? updatedOrder : o)
-      setOrders(newOrders)
-      toast({ title: "Success", description: "Order updated successfully." })
-
-    } else { // New Order
-       const customerId = formData.get("customer") as string
-       if (!customerId) {
-         toast({ variant: "destructive", title: "Error", description: "Please select a customer." })
-         return
-       }
-       const customer = initialCustomers.find(c => c.id === customerId)
-       if (!customer) {
-        toast({ variant: "destructive", title: "Error", description: "Customer not found." })
-        return
-       }
-       const newOrder: Order = {
-         id: `ORD${Date.now()}`,
-         customerName: customer!.name,
-         eventName: formData.get("eventName") as string,
-         eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
-         status: "Pending",
-         items: [],
-         orderType: 'Individual',
-         lastUpdated: new Date().toISOString(),
-       }
-       setOrders([newOrder, ...orders])
-       toast({ title: "Success", description: "New order has been added." })
+      handleCloseForm()
+    } catch(error) {
+       toast({ variant: "destructive", title: "Error", description: "Failed to save order." })
     }
-
-    handleCloseForm()
   }
 
-  const handleConfirmCancel = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleConfirmCancel = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!editingOrder) return
 
     const formData = new FormData(e.currentTarget)
     const reason = formData.get("reason") as string
-
-    const updatedOrder = { ...editingOrder, status: "Cancelled" as const, cancellationReason: reason, lastUpdated: new Date().toISOString() };
     
-    setOrders(
-      orders.map((o) =>
-        o.id === editingOrder.id
-          ? updatedOrder
-          : o
+    const updatedOrderData = { status: "Cancelled" as const, cancellationReason: reason, lastUpdated: new Date().toISOString() };
+
+    try {
+      await updateOrder(editingOrder.id, updatedOrderData);
+      const updatedOrder = { ...editingOrder, ...updatedOrderData }
+      setOrders(
+        orders.map((o) =>
+          o.id === editingOrder.id
+            ? updatedOrder
+            : o
+        )
       )
-    )
-    toast({ title: "Order Cancelled", description: `Order #${editingOrder.id} has been cancelled.` })
-    setCancelDialogOpen(false)
+      toast({ title: "Order Cancelled", description: `Order #${editingOrder.id} has been cancelled.` })
+      setCancelDialogOpen(false)
+      setEditingOrder(null)
+    } catch (error) {
+       toast({ variant: "destructive", title: "Error", description: "Failed to cancel order." })
+    }
   }
 
   const handleItemAdd = (menuItem: MenuItem) => {
@@ -231,9 +278,14 @@ export default function OrdersPage() {
       setTempItems(tempItems.map(i => i.menuItemId === menuItemId ? { ...i, quantity } : i))
     }
   }
+  
+  const formatDisplayDate = (date: string | Timestamp) => {
+    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    return format(d, 'PPP');
+  }
 
   const handleGenerateInvoice = (order: Order) => {
-    const customer = initialCustomers.find(c => c.name === order.customerName);
+    const customer = customers.find(c => c.name === order.customerName);
     const items = order.items || [];
     let finalAmount = 0;
 
@@ -257,6 +309,8 @@ export default function OrdersPage() {
             tableBody.push([item.name]);
         });
     }
+    
+    const lastUpdatedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated)
 
     const docDefinition: any = {
         content: [
@@ -295,7 +349,7 @@ export default function OrdersPage() {
                          alignment: 'right',
                         text: [
                             { text: 'Event: ', bold: true }, `${order.eventName}\n`,
-                            { text: 'Event Date: ', bold: true }, `${format(new Date(order.eventDate), "PPP")}`,
+                            { text: 'Event Date: ', bold: true }, `${formatDisplayDate(order.eventDate)}`,
                         ]
                     }
                 ],
@@ -350,7 +404,7 @@ export default function OrdersPage() {
                         ],
                         [
                             {text: 'Last Updated', bold: true},
-                            {text: format(new Date(order.lastUpdated), "PPP p"), alignment: 'right'}
+                            {text: format(lastUpdatedDate, "PPP p"), alignment: 'right'}
                         ],
                          ...(order.status === 'Cancelled' ? [[
                             {text: 'Cancellation Reason', bold: true},
@@ -398,6 +452,14 @@ export default function OrdersPage() {
       case "Completed": return "bg-green-500/20 text-green-700 border-green-500/30"
       case "Cancelled": return "bg-red-500/20 text-red-700 border-red-500/30"
     }
+  }
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -489,7 +551,7 @@ export default function OrdersPage() {
                <p className="text-sm text-muted-foreground font-semibold pb-2">Order #{order.id}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>Event on {format(new Date(order.eventDate), "PPP")}</span>
+                <span>Event on {formatDisplayDate(order.eventDate)}</span>
               </div>
             </CardContent>
             <CardFooter className="justify-end">
@@ -532,7 +594,7 @@ export default function OrdersPage() {
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="eventDate">Event Date</Label>
-                                <Input type="date" id="eventDate" name="eventDate" defaultValue={editingOrder?.eventDate} required/>
+                                <Input type="date" id="eventDate" name="eventDate" defaultValue={formatDateForInput(editingOrder.eventDate)} required/>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Order Status</Label>
@@ -679,7 +741,7 @@ export default function OrdersPage() {
                                   <SelectValue placeholder="Select a customer" />
                               </SelectTrigger>
                               <SelectContent>
-                                  {initialCustomers.map(customer => (
+                                  {customers.map(customer => (
                                       <SelectItem key={customer.id} value={customer.id}>
                                           {customer.name}
                                       </SelectItem>
@@ -701,7 +763,10 @@ export default function OrdersPage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isCancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+      <Dialog open={isCancelDialogOpen} onOpenChange={(open) => {
+        if (!open) setEditingOrder(null)
+        setCancelDialogOpen(open)
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel Order</DialogTitle>

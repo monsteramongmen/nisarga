@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Bar,
   BarChart,
@@ -10,8 +11,12 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Legend,
 } from "recharts"
+import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
+import { Timestamp } from "firebase/firestore";
 
+import { getOrders } from "@/services/orderService";
 import {
   Card,
   CardContent,
@@ -21,29 +26,74 @@ import {
 import {
   ChartContainer,
   ChartTooltipContent,
+  ChartLegendContent,
 } from "@/components/ui/chart"
+import { Loader2 } from "lucide-react";
 
-const revenueData = [
-  { month: "Jan", revenue: 400000 },
-  { month: "Feb", revenue: 300000 },
-  { month: "Mar", revenue: 500000 },
-  { month: "Apr", revenue: 450000 },
-  { month: "May", revenue: 600000 },
-  { month: "Jun", revenue: 550000 },
-  { month: "Jul", revenue: 700000 },
-]
-
-const ordersData = [
-  { month: "Jan", orders: 240 },
-  { month: "Feb", orders: 189 },
-  { month: "Mar", orders: 320 },
-  { month: "Apr", orders: 280 },
-  { month: "May", orders: 400 },
-  { month: "Jun", orders: 350 },
-  { month: "Jul", orders: 450 },
-]
 
 export default function ReportsPage() {
+  const [chartData, setChartData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReportData = async () => {
+      try {
+        const orders = await getOrders();
+        
+        const completedOrders = orders.filter(o => o.status === 'Completed');
+
+        const sixMonthsAgo = subMonths(new Date(), 5);
+        const today = new Date();
+        const interval = { start: startOfMonth(sixMonthsAgo), end: endOfMonth(today) };
+        const months = eachMonthOfInterval(interval);
+
+        const data = months.map(monthStart => {
+            const monthEnd = endOfMonth(monthStart);
+            
+            const monthlyRevenue = completedOrders
+                .filter(order => {
+                    const completedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated);
+                    return completedDate >= monthStart && completedDate <= monthEnd;
+                })
+                .reduce((acc, order) => {
+                    if (order.orderType === 'Individual') {
+                        return acc + (order.items?.reduce((itemAcc, item) => itemAcc + item.price * item.quantity, 0) || 0);
+                    } else {
+                        return acc + (order.perPlatePrice || 0) * (order.numberOfPlates || 0);
+                    }
+                }, 0);
+
+            const monthlyOrders = completedOrders.filter(order => {
+                const completedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated);
+                return completedDate >= monthStart && completedDate <= monthEnd;
+            }).length;
+
+            return {
+                month: format(monthStart, 'MMM'),
+                revenue: monthlyRevenue,
+                orders: monthlyOrders
+            };
+        });
+        
+        setChartData(data);
+      } catch (error) {
+        console.error("Failed to fetch report data:", error)
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReportData();
+  }, []);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
       <Card>
@@ -52,7 +102,7 @@ export default function ReportsPage() {
         </CardHeader>
         <CardContent>
           <ChartContainer config={{}} className="h-[300px] sm:h-[350px] w-full">
-            <BarChart accessibilityLayer data={revenueData}>
+            <BarChart accessibilityLayer data={chartData}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="month"
@@ -64,11 +114,11 @@ export default function ReportsPage() {
                 tickLine={false}
                 tickMargin={10}
                 axisLine={false}
-                tickFormatter={(value) => `₹${Number(value) / 100000}L`}
+                tickFormatter={(value) => `₹${Number(value) / 1000}k`}
               />
               <Tooltip
                 cursor={false}
-                content={<ChartTooltipContent indicator="dot" />}
+                content={<ChartTooltipContent indicator="dot" formatter={(value) => `₹${Number(value).toLocaleString()}`} />}
               />
               <Bar
                 dataKey="revenue"
@@ -87,7 +137,7 @@ export default function ReportsPage() {
           <ChartContainer config={{}} className="h-[300px] sm:h-[350px] w-full">
             <LineChart
               accessibilityLayer
-              data={ordersData}
+              data={chartData}
               margin={{
                 left: 12,
                 right: 12,

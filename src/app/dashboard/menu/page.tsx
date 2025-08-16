@@ -1,10 +1,9 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
-import { MoreHorizontal, PlusCircle, Search } from "lucide-react"
+import React, { useState, useMemo, useEffect } from "react"
+import { MoreHorizontal, PlusCircle, Search, Loader2 } from "lucide-react"
 
 import type { MenuItem } from "@/lib/data"
-import { menuItems as initialMenuItems } from "@/lib/data"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,14 +40,34 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
+import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem } from "@/services/menuService"
 
 export default function MenuPage() {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(initialMenuItems)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setDialogOpen] = useState(false)
   const [currentItem, setCurrentItem] = useState<MenuItem | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<"All" | "Veg" | "Non-Veg">("All")
   const { toast } = useToast()
+  
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      try {
+        const items = await getMenuItems()
+        setMenuItems(items)
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch menu items.",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchMenuItems()
+  }, [toast])
 
   const filteredMenuItems = useMemo(() => {
     let items = menuItems
@@ -66,44 +85,73 @@ export default function MenuPage() {
     return items
   }, [menuItems, searchTerm, categoryFilter])
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    const newMenuItem: MenuItem = {
-      id: currentItem?.id || `MENU${Date.now()}`,
+    const menuItemData = {
       name: formData.get("name") as string,
       category: formData.get("category") as "Veg" | "Non-Veg",
       price: parseFloat(formData.get("price") as string),
     }
 
-    if (currentItem) {
-      setMenuItems(
-        menuItems.map((item) =>
-          item.id === currentItem.id ? newMenuItem : item
+    try {
+      if (currentItem) {
+        const updatedItem = { ...currentItem, ...menuItemData }
+        await updateMenuItem(updatedItem.id, updatedItem)
+        setMenuItems(
+          menuItems.map((item) =>
+            item.id === currentItem.id ? updatedItem : item
+          )
         )
-      )
-      toast({ title: "Success", description: "Menu item updated." })
-    } else {
-      setMenuItems([newMenuItem, ...menuItems])
-      toast({ title: "Success", description: "New menu item added." })
+        toast({ title: "Success", description: "Menu item updated." })
+      } else {
+        const newItem = await addMenuItem(menuItemData)
+        setMenuItems([newItem, ...menuItems])
+        toast({ title: "Success", description: "New menu item added." })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save menu item.",
+      })
     }
+
     setDialogOpen(false)
     setCurrentItem(null)
   }
 
-  const handleDelete = (id: string) => {
-    setMenuItems(menuItems.filter((item) => item.id !== id))
-    toast({
-      variant: "destructive",
-      title: "Deleted",
-      description: "Menu item has been deleted.",
-    })
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMenuItem(id)
+      setMenuItems(menuItems.filter((item) => item.id !== id))
+      toast({
+        variant: "destructive",
+        title: "Deleted",
+        description: "Menu item has been deleted.",
+      })
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete menu item.",
+      })
+    }
   }
 
   const handleOpenDialog = (item: MenuItem | null = null) => {
     setCurrentItem(item)
     setDialogOpen(true)
   }
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
 
   return (
     <>

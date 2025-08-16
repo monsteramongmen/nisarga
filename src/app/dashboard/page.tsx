@@ -1,14 +1,14 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import {
   Calendar,
   DollarSign,
   Package,
   Users,
+  Loader2,
 } from "lucide-react"
 import {
-  Bar,
-  BarChart,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -17,8 +17,12 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts"
+import { format, subDays, startOfDay } from 'date-fns';
+import { Timestamp } from "firebase/firestore";
 
-import { sevenDayRevenue } from "@/lib/data"
+import type { Order } from "@/lib/data"
+import { getOrders } from "@/services/orderService"
+import { getCustomers } from "@/services/customerService"
 import {
   Card,
   CardContent,
@@ -31,6 +35,90 @@ import {
 } from "@/components/ui/chart"
 
 export default function Dashboard() {
+  const [stats, setStats] = useState({
+    totalOrdersToday: 0,
+    totalCustomers: 0,
+    totalRevenue: 0,
+    upcomingEvents: 0,
+  })
+  const [revenueData, setRevenueData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [orders, customers] = await Promise.all([getOrders(), getCustomers()])
+        
+        const today = startOfDay(new Date());
+        
+        const totalOrdersToday = orders.filter(order => {
+            const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+            return startOfDay(orderDate).getTime() === today.getTime() && order.status !== 'Cancelled';
+        }).length;
+
+        const totalCustomers = customers.length;
+        
+        const totalRevenue = orders
+          .filter(order => order.status === 'Completed')
+          .reduce((acc, order) => {
+            if (order.orderType === 'Individual') {
+                return acc + (order.items?.reduce((itemAcc, item) => itemAcc + item.price * item.quantity, 0) || 0);
+            } else {
+                return acc + (order.perPlatePrice || 0) * (order.numberOfPlates || 0);
+            }
+        }, 0);
+
+        const upcomingEvents = orders.filter(order => {
+          const eventDate = order.eventDate instanceof Timestamp ? order.eventDate.toDate() : new Date(order.eventDate);
+          return eventDate > new Date() && (order.status === 'Pending' || order.status === 'Confirmed' || order.status === 'In Progress');
+        }).length;
+        
+        setStats({ totalOrdersToday, totalCustomers, totalRevenue, upcomingEvents });
+        
+        // --- Process revenue for the last 7 days ---
+        const last7Days = Array.from({ length: 7 }, (_, i) => subDays(today, i)).reverse();
+        
+        const dailyRevenue = last7Days.map(day => {
+          const revenue = orders
+            .filter(order => {
+              if (order.status !== 'Completed') return false;
+              const completedDate = order.lastUpdated instanceof Timestamp ? order.lastUpdated.toDate() : new Date(order.lastUpdated);
+              return startOfDay(completedDate).getTime() === startOfDay(day).getTime();
+            })
+            .reduce((acc, order) => {
+               if (order.orderType === 'Individual') {
+                   return acc + (order.items?.reduce((itemAcc, item) => itemAcc + item.price * item.quantity, 0) || 0);
+               } else {
+                   return acc + (order.perPlatePrice || 0) * (order.numberOfPlates || 0);
+               }
+            }, 0);
+            
+          return {
+            date: format(day, 'MMM d'),
+            revenue: revenue / 1000, // For display in K
+          };
+        });
+
+        setRevenueData(dailyRevenue);
+        
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+  
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
@@ -40,10 +128,7 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">45</div>
-            <p className="text-xs text-muted-foreground">
-              +5 from yesterday
-            </p>
+            <div className="text-2xl font-bold">{stats.totalOrdersToday}</div>
           </CardContent>
         </Card>
         <Card>
@@ -52,22 +137,16 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">128</div>
-            <p className="text-xs text-muted-foreground">
-              +10 this month
-            </p>
+            <div className="text-2xl font-bold">{stats.totalCustomers}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹4,35,231</div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from last month
-            </p>
+            <div className="text-2xl font-bold">₹{stats.totalRevenue.toLocaleString('en-IN')}</div>
           </CardContent>
         </Card>
         <Card>
@@ -76,10 +155,7 @@ export default function Dashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">
-              in the next 30 days
-            </p>
+            <div className="text-2xl font-bold">{stats.upcomingEvents}</div>
           </CardContent>
         </Card>
       </div>
@@ -91,7 +167,7 @@ export default function Dashboard() {
           <CardContent>
             <ChartContainer config={{}} className="h-[300px] sm:h-[350px] w-full">
                <LineChart
-                data={sevenDayRevenue}
+                data={revenueData}
                 margin={{
                   left: 12,
                   right: 12,
@@ -108,9 +184,9 @@ export default function Dashboard() {
                    tickLine={false}
                    axisLine={false}
                    tickMargin={8}
-                   tickFormatter={(value) => `₹${value}`}
+                   tickFormatter={(value) => `₹${value}k`}
                 />
-                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" formatter={(value) => `₹${Number(value).toFixed(2)}k`} />} />
                 <Line
                   dataKey="revenue"
                   type="natural"

@@ -1,10 +1,11 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
-import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download, Trash2, PackageCheck } from "lucide-react"
+import React, { useState, useMemo, useEffect } from "react"
+import { Calendar, User, Search, PlusCircle, MoreVertical, Pencil, ShoppingCart, Download, Trash2, PackageCheck, Loader2 } from "lucide-react"
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import { useRouter } from 'next/navigation'
+import { Timestamp } from "firebase/firestore";
 
 
 if (pdfFonts.pdfMake) {
@@ -12,8 +13,7 @@ if (pdfFonts.pdfMake) {
 }
 
 
-import type { Order, Customer, MenuItem, OrderItem } from "@/lib/data"
-import { orders as initialOrders, customers as initialCustomers, menuItems } from "@/lib/data"
+import type { Order, Customer, MenuItem, OrderItem, Quotation } from "@/lib/data"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,27 +53,19 @@ import { format } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { getQuotations, addQuotation, updateQuotation, addOrderFromQuotation } from "@/services/quotationService";
+import { getCustomers } from "@/services/customerService";
+import { getMenuItems } from "@/services/menuService";
 
-
-type Quotation = Omit<Order, 'status' | 'id'> & {
-  id: string;
-  status: 'Draft' | 'Sent' | 'Accepted' | 'Declined' | 'Ordered';
-};
 
 const statusHierarchy: Quotation["status"][] = ["Draft", "Sent", "Accepted", "Declined", "Ordered"]
 
-// Mock data for quotations, can be replaced with API calls
-const initialQuotations: Quotation[] = [
-    { id: "QUO001", customerName: "Ethan Davis", eventName: "Summer BBQ", eventDate: "2024-09-10", status: "Accepted", items: [
-        { menuItemId: 'MENU01', name: 'Caprese Skewers', price: 625.50, quantity: 10 },
-        { menuItemId: 'MENU02', name: 'Chicken Satay', price: 830.00, quantity: 15 },
-    ], orderType: 'Individual', lastUpdated: new Date().toISOString() },
-    { id: "QUO002", customerName: "Fiona Garcia", eventName: "Product Launch", eventDate: "2024-09-20", status: "Sent", items: [], orderType: 'Individual', lastUpdated: new Date().toISOString()},
-];
 
 export default function QuotationsPage() {
-  const [quotations, setQuotations] = useState<Quotation[]>(initialQuotations)
-  const [orders, setOrders] = useState<Order[]>(initialOrders)
+  const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<"All" | Quotation["status"]>("All")
   const [isFormOpen, setFormOpen] = useState(false)
@@ -90,6 +82,30 @@ export default function QuotationsPage() {
 
   const { toast } = useToast()
   const router = useRouter()
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [quotationsData, customersData, menuItemsData] = await Promise.all([
+          getQuotations(),
+          getCustomers(),
+          getMenuItems(),
+        ]);
+        setQuotations(quotationsData);
+        setCustomers(customersData);
+        setMenuItems(menuItemsData);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch initial data.",
+        })
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [toast]);
 
 
   const filteredQuotations = useMemo(() => {
@@ -131,6 +147,11 @@ export default function QuotationsPage() {
       .filter(item => menuCategory === 'All' || item.category === menuCategory)
       .filter(item => item.name.toLowerCase().includes(menuSearch.toLowerCase()));
   }, [menuSearch, menuCategory, tempItems]);
+  
+  const formatDateForInput = (date: string | Timestamp) => {
+    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    return format(d, 'yyyy-MM-dd');
+  }
 
 
   const handleOpenForm = (quotation: Quotation | null = null) => {
@@ -158,82 +179,78 @@ export default function QuotationsPage() {
     setFormOpen(false)
   }
 
-  const handleSaveQuotation = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveQuotation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     
-    if (editingQuotation) {
-      const updatedQuotation: Quotation = {
-        ...editingQuotation,
-        eventName: formData.get("eventName") as string,
-        eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
-        status: formData.get("status") as Quotation["status"],
-        orderType: tempOrderType,
-        items: tempItems,
-        perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
-        numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
-        lastUpdated: new Date().toISOString()
+    try {
+      if (editingQuotation) {
+        const updatedQuotationData: Partial<Quotation> = {
+          eventName: formData.get("eventName") as string,
+          eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+          status: formData.get("status") as Quotation["status"],
+          orderType: tempOrderType,
+          items: tempItems,
+          perPlatePrice: tempOrderType === 'Plate' ? tempPerPlatePrice : undefined,
+          numberOfPlates: tempOrderType === 'Plate' ? tempNumberOfPlates : undefined,
+          lastUpdated: new Date().toISOString()
+        }
+         
+        await updateQuotation(editingQuotation.id, updatedQuotationData)
+        const updatedQuotation = { ...editingQuotation, ...updatedQuotationData } as Quotation;
+        setQuotations(quotations.map(o => o.id === editingQuotation.id ? updatedQuotation : o))
+        toast({ title: "Success", description: "Quotation updated successfully." })
+      } else {
+         const customerId = formData.get("customer") as string
+         if (!customerId) {
+           toast({ variant: "destructive", title: "Error", description: "Please select a customer." })
+           return
+         }
+         const customer = customers.find(c => c.id === customerId)
+         if (!customer) {
+          toast({ variant: "destructive", title: "Error", description: "Customer not found." })
+          return
+         }
+         const newQuotationData: Omit<Quotation, "id"> = {
+           customerName: customer!.name,
+           eventName: formData.get("eventName") as string,
+           eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
+           status: "Draft",
+           items: [],
+           orderType: 'Individual',
+           lastUpdated: new Date().toISOString(),
+           createdAt: Timestamp.now()
+         }
+         const newQuotation = await addQuotation(newQuotationData);
+         setQuotations([newQuotation, ...quotations])
+         toast({ title: "Success", description: "New quotation has been added." })
       }
-       
-      setQuotations(quotations.map(o => o.id === editingQuotation.id ? updatedQuotation : o))
-      toast({ title: "Success", description: "Quotation updated successfully." })
-    } else {
-       const customerId = formData.get("customer") as string
-       if (!customerId) {
-         toast({ variant: "destructive", title: "Error", description: "Please select a customer." })
-         return
-       }
-       const customer = initialCustomers.find(c => c.id === customerId)
-       if (!customer) {
-        toast({ variant: "destructive", title: "Error", description: "Customer not found." })
-        return
-       }
-       const newQuotation: Quotation = {
-         id: `QUO${Date.now()}`,
-         customerName: customer!.name,
-         eventName: formData.get("eventName") as string,
-         eventDate: format(new Date(formData.get("eventDate") as string), "yyyy-MM-dd"),
-         status: "Draft",
-         items: [],
-         orderType: 'Individual',
-         lastUpdated: new Date().toISOString()
-       }
-       setQuotations([newQuotation, ...quotations])
-       toast({ title: "Success", description: "New quotation has been added." })
+    } catch(error) {
+       toast({ variant: "destructive", title: "Error", description: "Failed to save quotation." })
     }
 
     handleCloseForm()
   }
 
-  const handlePlaceOrder = (quotation: Quotation) => {
-    const newOrder: Order = {
-      id: `ORD${Date.now()}`,
-      customerName: quotation.customerName,
-      eventName: quotation.eventName,
-      eventDate: quotation.eventDate,
-      status: 'Confirmed',
-      items: quotation.items,
-      orderType: quotation.orderType,
-      perPlatePrice: quotation.perPlatePrice,
-      numberOfPlates: quotation.numberOfPlates,
-      lastUpdated: new Date().toISOString(),
-    };
-    
-    // This assumes `orders` state is managed globally or passed down.
-    // For a real app, you would likely call an API here.
-    const updatedOrders = [...initialOrders, newOrder];
-    // For now, let's just log it. You'd update a shared state.
-    console.log("New Order Created:", newOrder);
-    
-    setQuotations(
-      quotations.map(q => q.id === quotation.id ? { ...q, status: 'Ordered' } : q)
-    );
+  const handlePlaceOrder = async (quotation: Quotation) => {
+    try {
+      const newOrderId = await addOrderFromQuotation(quotation);
+      setQuotations(
+        quotations.map(q => q.id === quotation.id ? { ...q, status: 'Ordered' } : q)
+      );
 
-    toast({
-      title: "Order Placed!",
-      description: `Order #${newOrder.id} has been created.`,
-    });
-    router.push('/dashboard/orders');
+      toast({
+        title: "Order Placed!",
+        description: `Order #${newOrderId} has been created.`,
+      });
+      router.push('/dashboard/orders');
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to place order.",
+      });
+    }
   };
 
   const handleItemAdd = (menuItem: MenuItem) => {
@@ -258,9 +275,14 @@ export default function QuotationsPage() {
       setTempItems(tempItems.map(i => i.menuItemId === menuItemId ? { ...i, quantity } : i))
     }
   }
+  
+  const formatDisplayDate = (date: string | Timestamp) => {
+    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    return format(d, 'PPP');
+  }
 
   const handleDownloadPdf = (quotation: Quotation) => {
-    const customer = initialCustomers.find(c => c.name === quotation.customerName);
+    const customer = customers.find(c => c.name === quotation.customerName);
     const items = quotation.items || [];
     let finalAmount = 0;
 
@@ -322,7 +344,7 @@ export default function QuotationsPage() {
                          alignment: 'right',
                         text: [
                             { text: 'Event: ', bold: true }, `${quotation.eventName}\n`,
-                            { text: 'Event Date: ', bold: true }, `${format(new Date(quotation.eventDate), "PPP")}`,
+                            { text: 'Event Date: ', bold: true }, `${formatDisplayDate(quotation.eventDate)}`,
                         ]
                     }
                 ],
@@ -405,6 +427,14 @@ export default function QuotationsPage() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
@@ -476,7 +506,7 @@ export default function QuotationsPage() {
                <p className="text-sm text-muted-foreground font-semibold pb-2">Quotation #{quotation.id}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>Event on {format(new Date(quotation.eventDate), "PPP")}</span>
+                <span>Event on {formatDisplayDate(quotation.eventDate)}</span>
               </div>
             </CardContent>
             <CardFooter className="justify-end">
@@ -519,7 +549,7 @@ export default function QuotationsPage() {
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="eventDate">Event Date</Label>
-                                <Input type="date" id="eventDate" name="eventDate" defaultValue={editingQuotation?.eventDate} required/>
+                                <Input type="date" id="eventDate" name="eventDate" defaultValue={formatDateForInput(editingQuotation.eventDate)} required/>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Quotation Status</Label>
@@ -666,7 +696,7 @@ export default function QuotationsPage() {
                                     <SelectValue placeholder="Select a customer" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {initialCustomers.map(customer => (
+                                    {customers.map(customer => (
                                         <SelectItem key={customer.id} value={customer.id}>
                                             {customer.name}
                                         </SelectItem>
@@ -690,5 +720,3 @@ export default function QuotationsPage() {
     </>
   )
 }
-
-    

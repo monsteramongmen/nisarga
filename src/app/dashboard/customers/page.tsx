@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
-import { Home, Phone, Search, PlusCircle, Pencil } from "lucide-react"
-import { customers as initialCustomers, Customer } from "@/lib/data"
+import React, { useState, useMemo, useEffect } from "react"
+import { Home, Phone, Search, PlusCircle, Pencil, Loader2 } from "lucide-react"
 import { getAvatarColor, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -25,13 +24,34 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { addCustomer, getCustomers, updateCustomer } from "@/services/customerService"
+import type { Customer } from "@/lib/data"
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setDialogOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const customersData = await getCustomers()
+        setCustomers(customersData)
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch customers.",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchCustomers()
+  }, [toast])
 
   const filteredCustomers = useMemo(() => {
     if (!searchTerm) return customers
@@ -49,7 +69,7 @@ export default function CustomersPage() {
     setDialogOpen(true)
   }
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const phone = formData.get("phone") as string
@@ -67,31 +87,44 @@ export default function CustomersPage() {
       return
     }
 
-    const customerData: Omit<Customer, "id" | "totalOrders"> = {
+    const customerData = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       phone: phone,
       address: formData.get("address") as string,
     }
 
-    if (editingCustomer) {
-      const updatedCustomer = { ...editingCustomer, ...customerData }
-      setCustomers(
-        customers.map((c) => (c.id === editingCustomer.id ? updatedCustomer : c))
-      )
-      toast({ title: "Success", description: "Customer updated." })
-    } else {
-      const newCustomer: Customer = {
-        ...customerData,
-        id: `CUST${Date.now()}`,
-        totalOrders: 0,
+    try {
+      if (editingCustomer) {
+        const updatedCustomer = { ...editingCustomer, ...customerData }
+        await updateCustomer(updatedCustomer.id, updatedCustomer)
+        setCustomers(
+          customers.map((c) => (c.id === editingCustomer.id ? updatedCustomer : c))
+        )
+        toast({ title: "Success", description: "Customer updated." })
+      } else {
+        const newCustomer = await addCustomer({ ...customerData, totalOrders: 0 })
+        setCustomers([newCustomer, ...customers])
+        toast({ title: "Success", description: "New customer added." })
       }
-      setCustomers([newCustomer, ...customers])
-      toast({ title: "Success", description: "New customer added." })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save customer.",
+      })
     }
 
     setDialogOpen(false)
     setEditingCustomer(null)
+  }
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
