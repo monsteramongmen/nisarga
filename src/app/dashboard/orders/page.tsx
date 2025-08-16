@@ -41,18 +41,29 @@ import { format } from "date-fns"
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"All" | Order["status"]>("All")
   const [isNewOrderDialogOpen, setNewOrderDialogOpen] = useState(false)
   const [isCancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null)
   const { toast } = useToast()
 
   const filteredOrders = useMemo(() => {
-    return orders.filter(order =>
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.eventName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  }, [orders, searchTerm])
+    let items = orders
+
+    if (statusFilter !== "All") {
+      items = items.filter((order) => order.status === statusFilter)
+    }
+
+    if (searchTerm) {
+      items = items.filter(order =>
+        order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.eventName.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    
+    return items
+  }, [orders, searchTerm, statusFilter])
 
   const handleStatusChange = (order: Order, newStatus: Order["status"]) => {
     if (newStatus === "Cancelled") {
@@ -132,8 +143,8 @@ export default function OrdersPage() {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+        <div className="relative flex-1 w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             type="text"
@@ -143,10 +154,24 @@ export default function OrdersPage() {
             className="pl-10"
           />
         </div>
-        <Button size="sm" onClick={() => setNewOrderDialogOpen(true)} className="ml-4">
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add New Order
-        </Button>
+        <div className="flex gap-4 w-full sm:w-auto">
+            <Select value={statusFilter} onValueChange={(value: "All" | Order["status"]) => setStatusFilter(value)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="All">All Statuses</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+            </Select>
+            <Button size="sm" onClick={() => setNewOrderDialogOpen(true)} className="whitespace-nowrap">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add New Order
+            </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
